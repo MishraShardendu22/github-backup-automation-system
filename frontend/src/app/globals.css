@@ -1,20 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f6f8fb;
-  --bg-card: #ffffff;
-  --bg-secondary: #eef3f6;
-  --bg-hover: #eef4f7;
-  --border: #d9e0e7;
-  --border-light: #e6ebf0;
-  --text: #16202a;
-  --text-secondary: #52616f;
-  --text-muted: #82909d;
-  --accent: #0f766e;
-  --accent-hover: #115e59;
-  --success: #0f766e;
-  --danger: #dc2626;
-  --warning: #b7791f;
+  --bg: #141210;
+  --surface: #1E1B16;
+  --surface2: #272319;
+  --border: #35301F;
+  --border2: #4A4228;
+  --accent: #D4A832;
+  --accent-bg: #2A2210;
+  --accent-light: #F5D97A;
+  --text: #F0EAD6;
+  --text2: #A89870;
+  --text3: #6B5E3E;
+  --success-bg: #0F1F10;
+  --success: #6FCF7F;
+  --danger-bg: #1F0F0F;
+  --danger: #E07070;
+  --accent-hover: #B99E2C;
+  --danger-hover: #D96B6B;
+  --bg-card: var(--surface);
+  --bg-secondary: var(--surface2);
+  --bg-hover: var(--accent-bg);
+  --border-light: var(--border2);
+  --text-secondary: var(--text2);
+  --text-muted: var(--text3);
+  --warning: #F5D97A;
   --font-serif: var(--font-instrument), "Georgia", serif;
   --font-sans: var(--font-inter), "Inter", system-ui, -apple-system, sans-serif;
   --page-max: 1180px;
@@ -37,7 +47,7 @@
 }
 
 body {
-  background: linear-gradient(180deg, #fbfcfd 0%, var(--bg) 34%, #f2f6f8 100%);
+  background: linear-gradient(180deg, var(--surface2) 0%, var(--bg) 34%, #100e0b 100%);
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 14px;
@@ -99,7 +109,7 @@ textarea {
   position: sticky;
   top: 0;
   z-index: 12;
-  background: rgba(246, 248, 251, 0.9);
+  background: rgba(20, 18, 16, 0.92);
   border-bottom: 1px solid var(--border-light);
   backdrop-filter: blur(12px);
 }
@@ -552,23 +562,23 @@ textarea {
 }
 
 .badge-success {
-  background: #e7f5f2;
-  color: #0f766e;
+  background: var(--success-bg);
+  color: var(--success);
 }
 
 .badge-error {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 
 .badge-running {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--accent-bg);
+  color: var(--accent);
 }
 
 .badge-neutral {
-  background: #f5f5f5;
-  color: #757575;
+  background: var(--surface2);
+  color: var(--text-secondary);
 }
 
 /* Buttons */
@@ -587,22 +597,22 @@ textarea {
 }
 
 .btn-primary {
-  background: var(--text);
-  color: white;
-  border-color: var(--text);
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
 }
 
 .btn-primary:hover {
-  background: #243140;
+  background: var(--accent-light);
 }
 
 .btn-danger {
-  background: var(--accent);
-  color: white;
+  background: var(--danger);
+  color: var(--bg);
 }
 
 .btn-danger:hover {
-  background: var(--accent-hover);
+  background: var(--danger-hover);
 }
 
 .btn-outline {
@@ -646,7 +656,7 @@ textarea {
   letter-spacing: 0.06em;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
-  background: #f8fafc;
+  background: var(--surface2);
 }
 
 .table td {
@@ -1023,7 +1033,7 @@ textarea {
   position: relative;
   overflow: hidden;
   padding: 24px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbfc 100%);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface2) 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -1042,8 +1052,8 @@ textarea {
   flex: 0 0 auto;
   padding: 8px 12px;
   border-radius: 999px;
-  background: #e7f5f2;
-  border: 1px solid rgba(15, 118, 110, 0.18);
+  background: var(--surface2);
+  border: 1px solid rgba(75, 65, 35, 0.18);
   color: var(--text-secondary);
   font-size: 11px;
   font-weight: 700;
