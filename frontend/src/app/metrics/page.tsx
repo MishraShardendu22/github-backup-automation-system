@@ -1,46 +1,55 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import Link from "next/link";
+import MetricsCharts, {
+  type MetricsChartPoint,
+} from "@/components/metrics/metrics-charts";
 import type { BackupRun, MetricsData } from "@/lib/types";
 import { cn, formatBytes, formatDuration } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const DAY_OPTIONS = [7, 14, 30, 90] as const;
 
-export default function MetricsPage() {
-  const [data, setData] = useState<MetricsData | null>(null);
-  const [days, setDays] = useState(30);
+async function fetchMetrics(days: number): Promise<MetricsData | null> {
+  try {
+    const res = await fetch(`${API}/api/metrics?days=${days}`, {
+      cache: "no-store",
+    });
+    return res.ok ? res.json() : null;
+  } catch {
+    return null;
+  }
+}
 
-  useEffect(() => {
-    fetch(`${API}/api/metrics?days=${days}`)
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => {});
-  }, [days]);
+function parseDays(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(raw);
+  return DAY_OPTIONS.includes(parsed as (typeof DAY_OPTIONS)[number])
+    ? parsed
+    : 30;
+}
 
+function buildChartData(runs: BackupRun[]): MetricsChartPoint[] {
+  return runs.map((run) => ({
+    date: new Date(run.started_at).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    }),
+    successful: run.successful,
+    failed: run.failed,
+    duration: Math.round(run.duration_ms / 1000),
+    total: run.total_repos,
+  }));
+}
+
+export default async function MetricsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ days?: string | string[] }>;
+}) {
+  const { days: daysParam } = await searchParams;
+  const days = parseDays(daysParam);
+  const data = await fetchMetrics(days);
   const latestAnalytics = data?.latest_analytics ?? null;
-
-  const chartData =
-    data?.runs.map((r: BackupRun) => ({
-      date: new Date(r.started_at).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      }),
-      successful: r.successful,
-      failed: r.failed,
-      duration: Math.round(r.duration_ms / 1000),
-      total: r.total_repos,
-    })) ?? [];
+  const chartData = buildChartData(data?.runs ?? []);
 
   return (
     <div className="page">
@@ -52,180 +61,90 @@ export default function MetricsPage() {
             Stored run trends, size totals, and performance over time.
           </p>
         </div>
-        <div className="segmented">
-          {[7, 14, 30, 90].map((d) => (
-            <button
-              type="button"
-              key={d}
-              onClick={() => setDays(d)}
-              className={cn("segmented-btn", days === d && "segmented-btn--active")}
-              aria-pressed={days === d}
+        <nav className="segmented" aria-label="Metrics range">
+          {DAY_OPTIONS.map((option) => (
+            <Link
+              key={option}
+              href={`/metrics?days=${option}`}
+              className={cn(
+                "segmented-btn",
+                days === option && "segmented-btn--active",
+              )}
+              aria-current={days === option ? "page" : undefined}
             >
-              {d}d
-            </button>
+              {option}d
+            </Link>
           ))}
-        </div>
+        </nav>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-6">
+      <div className="metric-grid metric-grid--six stats-grid">
         <div className="stat-card">
-          <div className="stat-label">Total Runs</div>
+          <div className="stat-label">Total runs</div>
           <div className="stat-value">{data?.total_runs ?? 0}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Avg Duration</div>
+          <div className="stat-label">Avg duration</div>
           <div className="stat-value">
-            {data?.avg_duration_ms ? formatDuration(data.avg_duration_ms) : "—"}
+            {data?.avg_duration_ms ? formatDuration(data.avg_duration_ms) : "-"}
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Successful</div>
-          <div className="stat-value" style={{ color: "var(--success)" }}>
+          <div className="stat-value stat-value--success">
             {data?.total_successful ?? 0}
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Total Size</div>
+          <div className="stat-label">Failed</div>
+          <div className="stat-value stat-value--danger">
+            {data?.total_failed ?? 0}
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Total size</div>
           <div className="stat-value">
             {formatBytes(data?.total_size_bytes ?? 0)}
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Logs Stored</div>
+          <div className="stat-label">Logs stored</div>
           <div className="stat-value">{data?.total_logs ?? 0}</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Largest Repository</div>
-          <div
-            className="stat-value"
-            style={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {data?.largest_repository ?? "—"}
-          </div>
-        </div>
       </div>
 
-      <div className="grid grid-cols-6">
-        <div className="stat-card">
-          <div className="stat-label">Commits</div>
-          <div className="stat-value">
-            {latestAnalytics?.total_commits ?? 0}
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Branches</div>
-          <div className="stat-value">{latestAnalytics?.branch_count ?? 0}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Failed</div>
-          <div className="stat-value" style={{ color: "var(--danger)" }}>
-            {data?.total_failed ?? 0}
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Tracked files</div>
-          <div className="stat-value">
-            {latestAnalytics?.tracked_files ?? 0}
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Avg blob size</div>
-          <div className="stat-value">
-            {latestAnalytics
-              ? formatBytes(latestAnalytics.avg_blob_size_bytes)
-              : "—"}
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Archive count</div>
-          <div className="stat-value">
-            {latestAnalytics?.archive_count ?? 0}
-          </div>
-        </div>
-      </div>
+      <MetricsCharts data={chartData} />
 
-      {/* Charts */}
-      <div className="grid grid-cols-2">
-        <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 20 }}>
-            Success vs failure
-          </div>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2ddd5" />
-              <XAxis dataKey="date" stroke="#9b9590" fontSize={11} />
-              <YAxis stroke="#9b9590" fontSize={11} />
-              <Tooltip
-                contentStyle={{
-                  background: "#fff",
-                  border: "1px solid #e2ddd5",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                }}
-              />
-              <Bar dataKey="successful" fill="#27ae60" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="failed" fill="#c0392b" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 20 }}>
-            Duration trend (seconds)
-          </div>
-          <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2ddd5" />
-              <XAxis dataKey="date" stroke="#9b9590" fontSize={11} />
-              <YAxis stroke="#9b9590" fontSize={11} />
-              <Tooltip
-                contentStyle={{
-                  background: "#fff",
-                  border: "1px solid #e2ddd5",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="duration"
-                stroke="#1a1a1a"
-                fill="rgba(26, 26, 26, 0.05)"
-                strokeWidth={2}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="card section-card">
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 20 }}>
-          Current repository snapshot
+      <section className="card section-card">
+        <div className="section-title">Current repository snapshot</div>
+        <div className="section-desc">
+          Latest collector output rendered on the server for the selected range.
         </div>
         {latestAnalytics ? (
-          <div className="grid grid-cols-6">
+          <div className="metric-grid metric-grid--six">
             <div className="card-flat">
               <div className="stat-label">Commits</div>
-              <div className="stat-value stat-value--md">{latestAnalytics.total_commits}</div>
+              <div className="stat-value stat-value--md">
+                {latestAnalytics.total_commits}
+              </div>
             </div>
             <div className="card-flat">
               <div className="stat-label">Branches</div>
-              <div className="stat-value stat-value--md">{latestAnalytics.branch_count}</div>
+              <div className="stat-value stat-value--md">
+                {latestAnalytics.branch_count}
+              </div>
             </div>
             <div className="card-flat">
               <div className="stat-label">Tags</div>
-              <div className="stat-value stat-value--md">{latestAnalytics.tag_count}</div>
+              <div className="stat-value stat-value--md">
+                {latestAnalytics.tag_count}
+              </div>
             </div>
             <div className="card-flat">
               <div className="stat-label">Tracked files</div>
-              <div className="stat-value stat-value--md">{latestAnalytics.tracked_files}</div>
+              <div className="stat-value stat-value--md">
+                {latestAnalytics.tracked_files}
+              </div>
             </div>
             <div className="card-flat">
               <div className="stat-label">Avg blob size</div>
@@ -236,14 +155,14 @@ export default function MetricsPage() {
             <div className="card-flat">
               <div className="stat-label">Largest blob</div>
               <div className="stat-value stat-value--md truncate">
-                {latestAnalytics.largest_blob_path || "—"}
+                {latestAnalytics.largest_blob_path || "-"}
               </div>
             </div>
           </div>
         ) : (
-          <div className="text-sm text-muted">No analytics snapshot stored yet.</div>
+          <div className="empty-state">No analytics snapshot stored yet.</div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

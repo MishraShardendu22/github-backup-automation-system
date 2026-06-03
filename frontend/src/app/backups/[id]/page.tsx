@@ -1,10 +1,12 @@
-import { formatDuration, formatDate, formatBytes } from "@/lib/utils";
-import type { BackupRun, BackupResult } from "@/lib/types";
 import Link from "next/link";
+import type { BackupResult, BackupRun } from "@/lib/types";
+import { formatBytes, formatDate, formatDuration } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
-async function fetchRunDetail(id: string): Promise<{ run: BackupRun; results: BackupResult[] } | null> {
+async function fetchRunDetail(
+  id: string,
+): Promise<{ run: BackupRun; results: BackupResult[] } | null> {
   try {
     const res = await fetch(`${API}/api/backups/${id}`, { cache: "no-store" });
     return res.ok ? res.json() : null;
@@ -13,14 +15,20 @@ async function fetchRunDetail(id: string): Promise<{ run: BackupRun; results: Ba
   }
 }
 
-export default async function BackupDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function BackupDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const data = await fetchRunDetail(id);
 
   if (!data) {
     return (
       <div style={{ textAlign: "center", paddingTop: 100 }}>
-        <h2 style={{ fontFamily: "var(--font-serif)", fontSize: 28 }}>Run not found</h2>
+        <h2 style={{ fontFamily: "var(--font-serif)", fontSize: 28 }}>
+          Run not found
+        </h2>
         <Link
           href="/backups"
           className="btn btn-outline"
@@ -63,18 +71,25 @@ export default async function BackupDetailPage({ params }: { params: Promise<{ i
         </span>
       </div>
 
-      <div className="grid grid-cols-4">
+      <div className="metric-grid metric-grid--four stats-grid">
         <div className="stat-card">
           <div className="stat-label">Total</div>
           <div className="stat-value">{run.total_repos}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Success</div>
-          <div className="stat-value" style={{ color: "var(--success)" }}>{run.successful}</div>
+          <div className="stat-value" style={{ color: "var(--success)" }}>
+            {run.successful}
+          </div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Failed</div>
-          <div className="stat-value" style={{ color: run.failed > 0 ? "var(--danger)" : "inherit" }}>{run.failed}</div>
+          <div
+            className="stat-value"
+            style={{ color: run.failed > 0 ? "var(--danger)" : "inherit" }}
+          >
+            {run.failed}
+          </div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Skipped</div>
@@ -83,14 +98,24 @@ export default async function BackupDetailPage({ params }: { params: Promise<{ i
       </div>
 
       <div className="card table-card">
-        <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border-light)" }}>
-          <span style={{ fontWeight: 600, fontSize: 14 }}>Repository results</span>
+        <div
+          style={{
+            padding: "16px 24px",
+            borderBottom: "1px solid var(--border-light)",
+          }}
+        >
+          <span style={{ fontWeight: 600, fontSize: 14 }}>
+            Repository results
+          </span>
           <span className="text-xs text-muted" style={{ marginLeft: 8 }}>
             ({results.length})
           </span>
         </div>
         {results.length === 0 ? (
-          <p className="text-sm text-muted" style={{ padding: 32, textAlign: "center" }}>
+          <p
+            className="text-sm text-muted"
+            style={{ padding: 32, textAlign: "center" }}
+          >
             No results
           </p>
         ) : (
@@ -108,21 +133,40 @@ export default async function BackupDetailPage({ params }: { params: Promise<{ i
               <tbody>
                 {results.map((r) => (
                   <tr key={r.id}>
-                    <td style={{ fontWeight: 500, fontSize: 13 }}>{r.repo_full_name}</td>
-                    <td>
+                    <td
+                      data-label="Repository"
+                      style={{ fontWeight: 500, fontSize: 13 }}
+                    >
+                      {r.repo_full_name}
+                    </td>
+                    <td data-label="Status">
                       <span
                         className={`badge ${r.status === "completed" ? "badge-success" : r.status === "failed" ? "badge-error" : "badge-neutral"}`}
                       >
                         {r.status}
                       </span>
                     </td>
-                    <td className="text-xs text-muted" style={{ fontFamily: "monospace" }}>
+                    <td
+                      data-label="Hash"
+                      className="text-xs text-muted"
+                      style={{ fontFamily: "monospace" }}
+                    >
                       {r.commit_hash ? r.commit_hash.slice(0, 8) : "—"}
                     </td>
-                    <td style={{ fontSize: 13 }}>
-                      {r.archive_size_bytes > 0 ? formatBytes(r.archive_size_bytes) : "—"}
+                    <td data-label="Size" style={{ fontSize: 13 }}>
+                      {r.archive_size_bytes > 0
+                        ? formatBytes(r.archive_size_bytes)
+                        : "—"}
                     </td>
-                    <td className="truncate" style={{ color: "var(--danger)", fontSize: 12, maxWidth: 200 }}>
+                    <td
+                      data-label="Error"
+                      className="truncate"
+                      style={{
+                        color: "var(--danger)",
+                        fontSize: 12,
+                        maxWidth: 200,
+                      }}
+                    >
                       {r.error_message || "—"}
                     </td>
                   </tr>
