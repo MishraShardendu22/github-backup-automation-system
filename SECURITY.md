@@ -43,9 +43,9 @@ The following areas are in scope for security review:
 ## Supported Versions
 
 | Version | Supported          |
-| ------- | ------------------ |
-| Latest  | :white_check_mark: |
-| Older   | :x:                |
+|---------|--------------------|
+| Latest  | Active support     |
+| Older   | Not supported      |
 
 Only the latest release of this project is actively supported with security updates.
 
