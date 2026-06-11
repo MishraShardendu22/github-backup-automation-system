@@ -84,7 +84,6 @@ type RepoAnalyticsSnapshot struct {
 	LargestArchiveSizeBytes int64      `json:"largest_archive_size_bytes"`
 }
 
-// API response types
 type DashboardStats struct {
 	TotalRuns           int                    `json:"total_runs"`
 	TotalRepos          int                    `json:"total_repos"`

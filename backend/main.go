@@ -19,30 +19,26 @@ import (
 )
 
 func main() {
-	// Load .env
 	godotenv.Load()
 
-	// Connect PostgreSQL
 	if err := db.Connect(); err != nil {
 		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
 	}
 	defer db.Close()
 
-	// Run migrations
 	if err := db.RunMigrations(); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
 	log.Println("PostgreSQL connected and migrations applied")
 
-	// Create Fiber app
 	app := fiber.New(fiber.Config{
 		AppName:      "GitHub Backup Monitor",
 		BodyLimit:    10 * 1024 * 1024,
 		ServerHeader: "GBM",
 	})
 
-	// Middleware
+
 	app.Use(middleware.SetupLogger())
 	app.Use(middleware.SetupCORS())
 	app.Options("/*", func(c *fiber.Ctx) error {
@@ -53,10 +49,8 @@ func main() {
 		return c.SendStatus(fiber.StatusOK)
 	})
 
-	// Routes
 	routes.Setup(app)
 
-	// Start WebSocket polling
 	go websocket.DefaultHub.Run()
 	websocket.DefaultHub.StartPolling()
 
@@ -64,7 +58,6 @@ func main() {
 	defer collectorCancel()
 	analytics.Start(collectorCtx, 30*time.Second)
 
-	// Graceful shutdown
 	port := os.Getenv("SERVER_PORT")
 	if port == "" {
 		port = "8080"

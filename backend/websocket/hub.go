@@ -47,9 +47,7 @@ func (h *Hub) Run() {
 	}
 }
 
-// StartPolling polls PostgreSQL for new logs and broadcasts them to WebSocket clients.
 func (h *Hub) StartPolling() {
-	// Poll for live logs every 2 seconds.
 	go func() {
 		var lastLogID int
 		for {
@@ -65,7 +63,6 @@ func (h *Hub) StartPolling() {
 
 			ctx := context.Background()
 
-			// Send new logs since last check
 			rows, err := db.Pool.Query(ctx,
 				`SELECT id, level, message, repository, created_at
 				 FROM execution_logs WHERE id > $1 ORDER BY id LIMIT 50`, lastLogID)
@@ -102,7 +99,6 @@ func HandleWebSocket(c *ws.Conn) {
 	DefaultHub.Register(c)
 	defer DefaultHub.Unregister(c)
 
-	// Keep connection alive, read pings
 	for {
 		_, _, err := c.ReadMessage()
 		if err != nil {

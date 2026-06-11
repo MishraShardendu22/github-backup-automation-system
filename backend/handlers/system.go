@@ -21,7 +21,6 @@ func GetSystemHealth(c *fiber.Ctx) error {
 		dbOk = false
 	}
 
-	// Check if worker is running (has a 'running' backup_run)
 	var workerRunning bool
 	var currentRunID *int
 	err := db.Pool.QueryRow(ctx, `SELECT id FROM backup_runs WHERE status = 'running' ORDER BY started_at DESC LIMIT 1`).Scan(&currentRunID)

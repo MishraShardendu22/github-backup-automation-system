@@ -197,7 +197,6 @@ func buildDBContext() string {
 		sb.WriteString(fmt.Sprintf("Latest analytics: tracked_files=%d commits=%d branches=%d tags=%d archives=%d avg_blob=%s largest_blob=%s (%s)\n", latestAnalytics.TrackedFiles, latestAnalytics.TotalCommits, latestAnalytics.BranchCount, latestAnalytics.TagCount, latestAnalytics.ArchiveCount, formatBytesHuman(latestAnalytics.AvgBlobSize), formatBytesHuman(latestAnalytics.LargestBlobSize), latestAnalytics.LargestBlobPath))
 	}
 
-	// Last 5 runs
 	rows, _ := db.Pool.Query(ctx, `SELECT status, started_at, total_repos, successful, failed, duration_ms FROM backup_runs ORDER BY started_at DESC LIMIT 5`)
 	if rows != nil {
 		sb.WriteString("\nRecent runs:\n")

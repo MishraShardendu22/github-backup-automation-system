@@ -1,4 +1,3 @@
--- Backup runs (each execution of the worker)
 CREATE TABLE IF NOT EXISTS backup_runs (
     id SERIAL PRIMARY KEY,
     status TEXT NOT NULL DEFAULT 'running',
@@ -12,7 +11,6 @@ CREATE TABLE IF NOT EXISTS backup_runs (
     error_message TEXT DEFAULT ''
 );
 
--- Per-repo backup results
 CREATE TABLE IF NOT EXISTS backup_results (
     id SERIAL PRIMARY KEY,
     run_id INT REFERENCES backup_runs(id) ON DELETE CASCADE,
@@ -25,7 +23,6 @@ CREATE TABLE IF NOT EXISTS backup_results (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Execution logs from worker
 CREATE TABLE IF NOT EXISTS execution_logs (
     id SERIAL PRIMARY KEY,
     run_id INT REFERENCES backup_runs(id) ON DELETE CASCADE,
@@ -37,7 +34,6 @@ CREATE TABLE IF NOT EXISTS execution_logs (
 CREATE INDEX IF NOT EXISTS idx_execution_logs_run ON execution_logs(run_id);
 CREATE INDEX IF NOT EXISTS idx_execution_logs_time ON execution_logs(created_at);
 
--- Git-derived analytics snapshots captured by the backend while the worker runs
 CREATE TABLE IF NOT EXISTS analytics_snapshots (
     id SERIAL PRIMARY KEY,
     run_id INT REFERENCES backup_runs(id) ON DELETE SET NULL,
@@ -62,26 +58,6 @@ CREATE TABLE IF NOT EXISTS analytics_snapshots (
 CREATE INDEX IF NOT EXISTS idx_analytics_snapshots_time ON analytics_snapshots(captured_at);
 CREATE INDEX IF NOT EXISTS idx_analytics_snapshots_run ON analytics_snapshots(run_id);
 
--- AI conversations
-CREATE TABLE IF NOT EXISTS ai_conversations (
-    id SERIAL PRIMARY KEY,
-    title TEXT DEFAULT 'New Conversation',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- AI messages
-CREATE TABLE IF NOT EXISTS ai_messages (
-    id SERIAL PRIMARY KEY,
-    conversation_id INT REFERENCES ai_conversations(id) ON DELETE CASCADE,
-    role TEXT NOT NULL,
-    content TEXT NOT NULL,
-    tokens_used INT DEFAULT 0,
-    web_search BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_ai_messages_conv ON ai_messages(conversation_id);
-
--- Report history
 CREATE TABLE IF NOT EXISTS report_history (
     id SERIAL PRIMARY KEY,
     report_type TEXT NOT NULL,

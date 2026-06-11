@@ -10,7 +10,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//go:embed schema.sql
 var migrationSQL string
 
 var Pool *pgxpool.Pool

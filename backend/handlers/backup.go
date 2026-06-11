@@ -108,34 +108,26 @@ func GetDashboardStats(c *fiber.Ctx) error {
 
 	var stats models.DashboardStats
 
-	// Total runs
 	db.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM backup_runs`).Scan(&stats.TotalRuns)
 
-	// Aggregate all stored runs; skips are tracked separately and are not treated as failures.
 	var totalSuccess, totalFailed, totalSkipped int
 	db.Pool.QueryRow(ctx, `SELECT COALESCE(SUM(successful), 0), COALESCE(SUM(failed), 0), COALESCE(SUM(skipped), 0) FROM backup_runs`).Scan(&totalSuccess, &totalFailed, &totalSkipped)
 	stats.TotalSuccessful = totalSuccess
 	stats.TotalFailed = totalFailed
 	stats.TotalSkipped = totalSkipped
 
-	// Success rate excludes skipped entries from the denominator.
 	if totalSuccess+totalFailed > 0 {
 		stats.SuccessRate = float64(totalSuccess) / float64(totalSuccess+totalFailed) * 100
 	}
 
-	// Total repositories processed across all runs.
 	db.Pool.QueryRow(ctx, `SELECT COALESCE(SUM(total_repos), 0) FROM backup_runs`).Scan(&stats.TotalRepos)
-
-	// Last run
 	db.Pool.QueryRow(ctx, `SELECT status, started_at FROM backup_runs ORDER BY started_at DESC LIMIT 1`).Scan(&stats.LastRunStatus, &stats.LastRunAt)
-
-	// Average duration across all stored runs, falling back to any positive values.
 	db.Pool.QueryRow(ctx, `SELECT COALESCE(AVG(NULLIF(duration_ms, 0)), 0) FROM backup_runs`).Scan(&stats.AvgDurationMs)
+
 	if stats.AvgDurationMs == 0 {
 		db.Pool.QueryRow(ctx, `SELECT COALESCE(AVG(duration_ms), 0) FROM backup_runs`).Scan(&stats.AvgDurationMs)
 	}
 
-	// Repository totals from backup_results and execution logs
 	db.Pool.QueryRow(ctx, `SELECT COALESCE(COUNT(DISTINCT repo_full_name), 0) FROM backup_results`).Scan(&stats.DistinctRepos)
 	db.Pool.QueryRow(ctx, `SELECT COALESCE(COUNT(*), 0) FROM execution_logs`).Scan(&stats.TotalLogs)
 	db.Pool.QueryRow(ctx, `SELECT COALESCE(SUM(archive_size_bytes), 0), COALESCE(MAX(archive_size_bytes), 0), COALESCE((SELECT repo_full_name FROM backup_results ORDER BY archive_size_bytes DESC, created_at DESC LIMIT 1), '') FROM backup_results`).Scan(&stats.TotalSizeBytes, &stats.LargestArchiveBytes, &stats.LargestRepository)

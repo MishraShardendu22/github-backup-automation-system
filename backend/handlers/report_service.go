@@ -493,10 +493,6 @@ func buildAIInsights(ctx context.Context, bundle ReportBundle) []string {
 	return flattenAIAddendum(parsed)
 }
 
-func fallbackAIInsights(bundle ReportBundle) []string {
-	return flattenAIAddendum(fallbackAIAddendum(bundle))
-}
-
 func mustJSON(value any) string {
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
@@ -515,8 +511,8 @@ func RenderReportHTML(bundle ReportBundle) string {
 	b.WriteString(`<div style="max-width:840px;margin:0 auto;background:#fff;border:1px solid #e2ddd5;border-radius:18px;padding:28px;box-shadow:0 14px 44px rgba(26,26,26,0.05);">`)
 	b.WriteString(`<div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px;">`)
 	b.WriteString(`<div><div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9b9590;margin-bottom:8px;">Backup report</div>`)
-	b.WriteString(`<h1 style="margin:0 0 8px;font-size:28px;line-height:1.1;">` + htmlEscape(bundle.Headline) + `</h1>`)
-	b.WriteString(`<p style="margin:0;color:#6b6560;line-height:1.7;max-width:720px;">` + htmlEscape(bundle.Summary) + `</p></div>`)
+	b.WriteString(`<h1 style="margin:0 0 8px;font-size:28px;line-height:1.1;">`);b.WriteString(htmlEscape(bundle.Headline));b.WriteString(`</h1>`)
+	b.WriteString(`<p style="margin:0;color:#6b6560;line-height:1.7;max-width:720px;">`);b.WriteString(htmlEscape(bundle.Summary));b.WriteString(`</p></div>`)
 	b.WriteString(`<div style="padding:10px 14px;border:1px solid #e2ddd5;border-radius:999px;font-size:12px;color:#6b6560;white-space:nowrap;">` + htmlEscape(bundle.GeneratedAt.Format("2006-01-02 15:04 UTC")) + `</div>`)
 	b.WriteString(`</div>`)
 	b.WriteString(reportMetricGridHTML(bundle.Metrics))
@@ -1030,7 +1026,7 @@ func latexPreamble(theme reportTheme, bundle ReportBundle) string {
 	b.WriteString("\\definecolor{brandAccent}{HTML}{" + theme.AccentHex + "}\n")
 	b.WriteString("\\definecolor{brandMuted}{HTML}{" + theme.MutedHex + "}\n")
 	b.WriteString("\\definecolor{surfaceTint}{HTML}{" + theme.SurfaceHex + "}\n")
-	b.WriteString("\\definecolor{cardTint}{HTML}{" + theme.CardHex + "}\n")
+	b.WriteString("\\definecolor{cardTint}{HTML}{");b.WriteString(theme.CardHex);b.WriteString("}\n")
 	b.WriteString("\\definecolor{riskTint}{HTML}{" + theme.RiskHex + "}\n")
 	b.WriteString("\\definecolor{tableHead}{HTML}{" + theme.TableHeaderHex + "}\n")
 	b.WriteString("\\newtcolorbox{reportbox}[2][]{colback=cardTint,colframe=brandAccent!55!black,boxrule=0.5pt,arc=2.2mm,top=1.6mm,bottom=1.6mm,left=1.6mm,right=1.6mm,title=\\textbf{#2},fonttitle=\\small\\bfseries,coltitle=brandPrimary,#1}\n")
@@ -1382,8 +1378,4 @@ func hexToRGBOrDefault(hex string, defaultR, defaultG, defaultB int) (int, int, 
 		return defaultR, defaultG, defaultB
 	}
 	return r, g, b
-}
-
-func writePDFSectionHeadingWithRGB(pdf *gofpdf.Fpdf, title string, rgb [3]int) {
-	writePDFSectionHeading(pdf, title, rgb[0], rgb[1], rgb[2])
 }
