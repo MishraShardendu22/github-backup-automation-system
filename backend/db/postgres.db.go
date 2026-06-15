@@ -10,10 +10,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// This is not a comment this is why migrations work
+//go:embed schema.sql
 var migrationSQL string
 
 var Pool *pgxpool.Pool
 
+// create a connection
 func Connect() error {
 	url := os.Getenv("POSTGRES_URL")
 	if url == "" {
@@ -44,12 +47,14 @@ func Connect() error {
 	return nil
 }
 
+// close a connection
 func Close() {
 	if Pool != nil {
 		Pool.Close()
 	}
 }
 
+// run the migrations
 func RunMigrations() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

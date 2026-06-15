@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+/*
+    Quite self explanatory
+*/ 
 func ExtractRepoName(fullName string) string {
 	return fullName[strings.Index(fullName, "/")+1:]
 }
@@ -18,4 +21,12 @@ func BuildCommitMessage(repoName string) string {
 	return SanitizeCommitMessage(fmt.Sprintf("Backup Added on %s for the repo %s",
 		time.Now().Format("2006-01-02 Monday 15:04:05"),
 		repoName))
+}
+
+func SanitizeCommitMessage(msg string) string {
+	msg = strings.ReplaceAll(msg, "'", "'\\''")
+	msg = strings.ReplaceAll(msg, "\"", "\\\"")
+	msg = strings.ReplaceAll(msg, "`", "\\`")
+	msg = strings.ReplaceAll(msg, "$", "\\$")
+	return msg
 }

@@ -17,44 +17,32 @@ import (
 	"go.uber.org/zap"
 )
 
+// check the flow in the end
 const (
 	cloneWorkers      = 5
 	hashCheckWorkers  = 10
 	maxGitHubBlobSize = 95 * 1024 * 1024
 )
 
-type repoResult struct {
-	FullName    string
-	RepoName    string
-	URL         string
-	CurrentHash string
-	Err         error
-}
-
-type repoHashResult struct {
-	FullName    string
-	RepoName    string
-	URL         string
-	CurrentHash string
-	HashErr     error
-	Skipped     bool
-}
-
 func ProcessRepos(repoNames []string, config *model.ConfigModel, db *sql.DB) {
+	// 1.
 	if err := helper.EnsureReposDirExists(); err != nil {
 		util.ErrorHandler(err)
 		return
 	}
 
+	// 2.
 	if err := helper.EnsureBackupRepoInitialized(config); err != nil {
 		util.ErrorHandler(err)
 		return
 	}
 
+	// 3.
 	processDeletedRepos(repoNames, db)
 
 	util.Logger().Info("Starting repository backup")
 
+	// start saving data in cloud postgres
 	mon := monitor.Get()
 	start := time.Now()
 	if mon != nil {
@@ -66,9 +54,11 @@ func ProcessRepos(repoNames []string, config *model.ConfigModel, db *sql.DB) {
 		zap.Int("total", len(repoNames)),
 		zap.Int("workers", hashCheckWorkers),
 	)
+
+	// 4.
 	hashResults := parallelHashCheck(repoNames, db)
 
-	var toClone []repoHashResult
+	var toClone []model.RepoHashResult
 	skippedCount := 0
 	for _, hr := range hashResults {
 		if hr.Skipped {
@@ -115,10 +105,10 @@ func ProcessRepos(repoNames []string, config *model.ConfigModel, db *sql.DB) {
 			zap.Int("total", len(toClone)),
 		)
 
-		// Clone + archive in parallel (5 at a time)
+		// 5. Clone + archive in parallel (5 at a time, 10 fail kar raha tha)
 		cloneResults := parallelCloneAndArchive(batch)
 
-		// Commit + push EACH repo individually (serial, one by one)
+		// 6. Commit + push EACH repo individually (serial, one by one)
 		for _, res := range cloneResults {
 			if res.Err != nil {
 				recordFailure(db, res.FullName, res.Err)
@@ -131,7 +121,7 @@ func ProcessRepos(repoNames []string, config *model.ConfigModel, db *sql.DB) {
 				continue
 			}
 
-			// Stage the tarball
+			// 7. Stage the tarball
 			tarball := fmt.Sprintf("%s.tar.gz", res.RepoName)
 			archivePath := fmt.Sprintf("_Repos/%s", tarball)
 			info, err := os.Stat(archivePath)
@@ -167,7 +157,7 @@ func ProcessRepos(repoNames []string, config *model.ConfigModel, db *sql.DB) {
 			commitMsg := helper.BuildCommitMessage(res.RepoName)
 			helper.StageAndCommitRepo(tarball, commitMsg)
 
-			// Push THIS repo immediately
+			// 8. Push THIS repo immediately
 			if err := helper.PushBackupRepo(res.RepoName); err != nil {
 				util.Logger().Error("Failed to push repo",
 					zap.String("repository", res.FullName),
@@ -182,7 +172,7 @@ func ProcessRepos(repoNames []string, config *model.ConfigModel, db *sql.DB) {
 				continue
 			}
 
-			// Update DB with new hash
+			// 9. Update DB with new hash
 			if db != nil && res.CurrentHash != "" {
 				if err := database.UpsertRepo(db, res.RepoName, res.FullName, res.URL, res.CurrentHash); err != nil {
 					util.Logger().Warn("Failed to store repository hash",
@@ -218,22 +208,27 @@ func ProcessRepos(repoNames []string, config *model.ConfigModel, db *sql.DB) {
 	printBackupSummary(repoNames, successCount, skippedCount, failedRepos)
 }
 
-func parallelHashCheck(repoNames []string, db *sql.DB) []repoHashResult {
-	results := make([]repoHashResult, len(repoNames))
+// parallely check the hashes of the repos
+func parallelHashCheck(repoNames []string, db *sql.DB) []model.RepoHashResult {
+	results := make([]model.RepoHashResult, len(repoNames))
 	var wg sync.WaitGroup
+	
+	// It is being used as a counting semaphore.
+	// a synchronization primitive used to control access to shared resources in concurrent systems
+	// basically it is a mechanism to control to make sure 2 thread (here go routines) dont interfere with each others work
 	sem := make(chan struct{}, hashCheckWorkers)
 
 	for i, fullName := range repoNames {
 		wg.Add(1)
 		go func(idx int, fullName string) {
 			defer wg.Done()
-			sem <- struct{}{}        // acquire
-			defer func() { <-sem }() // release
+			sem <- struct{}{}        // acquire (a place is taken in the channel)
+			defer func() { <-sem }() // release (at the end of execution space is freed)
 
 			repoName := helper.ExtractRepoName(fullName)
 			url := helper.BuildCloneURL(fullName)
 
-			hr := repoHashResult{
+			hr := model.RepoHashResult{
 				FullName: fullName,
 				RepoName: repoName,
 				URL:      url,
@@ -278,29 +273,30 @@ func parallelHashCheck(repoNames []string, db *sql.DB) []repoHashResult {
 }
 
 // parallelCloneAndArchive runs clone + archive with a worker pool
-func parallelCloneAndArchive(repos []repoHashResult) []repoResult {
-	results := make([]repoResult, len(repos))
+func parallelCloneAndArchive(repos []model.RepoHashResult) []model.RepoResult {
+	results := make([]model.RepoResult, len(repos))
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, cloneWorkers)
-	var processed int64
+	var processed atomic.Int64
 
 	total := len(repos)
 
 	for i, hr := range repos {
 		wg.Add(1)
-		go func(idx int, hr repoHashResult) {
+		go func(idx int, hr model.RepoHashResult) {
+			// same concept of cahnnels as hash
 			defer wg.Done()
 			sem <- struct{}{}        // acquire
 			defer func() { <-sem }() // release
 
-			current := atomic.AddInt64(&processed, 1)
+			current := processed.Add(1)
 			util.Logger().Info("Cloning repository",
 				zap.Int64("current", current),
 				zap.Int("total", total),
 				zap.String("repository", hr.FullName),
 			)
 
-			res := repoResult{
+			res := model.RepoResult{
 				FullName:    hr.FullName,
 				RepoName:    hr.RepoName,
 				URL:         hr.URL,
@@ -428,8 +424,10 @@ func processDeletedRepos(currentRepoNames []string, db *sql.DB) {
 
 	commitMsg := helper.SanitizeCommitMessage(fmt.Sprintf("Removed %d deleted repo(s) on %s",
 		deletedCount, time.Now().Format("2006-01-02 Monday 15:04:05")))
+
 	commitCmd := exec.Command("sh", "-c",
 		fmt.Sprintf("cd _Repos && git diff --staged --quiet || git commit -m '%s' -s", commitMsg))
+
 	if _, err := commitCmd.CombinedOutput(); err != nil {
 		util.Logger().Warn("Failed to commit deleted repo removals", zap.Error(err))
 	}
@@ -445,6 +443,7 @@ func processDeletedRepos(currentRepoNames []string, db *sql.DB) {
 	}
 }
 
+/* save failures in db */
 func recordFailure(db *sql.DB, repo string, failure error) {
 	if db == nil || failure == nil {
 		return
@@ -457,3 +456,27 @@ func recordFailure(db *sql.DB, repo string, failure error) {
 		)
 	}
 }
+
+/*
+1. Check if backup dir exist locally
+    ↓
+2. Check if backup repo is initialised
+    ↓
+3. processDeletedRepos
+    ↓
+4. Hash Check
+    ↓
+5. Clone
+    ↓
+6. Remove .git
+    ↓
+7. Archive (.tar.gz)
+        ↓
+8-a. git add
+		↓
+8-b. git commit
+		↓
+8-c. git push
+        ↓
+9. Store latest hash in DB
+*/

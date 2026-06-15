@@ -22,7 +22,6 @@ func main() {
 	util.ErrorHandler(err)
 	defer db.Close()
 
-	// Initialize PostgreSQL monitor (for dashboard)
 	if err := monitor.Init(); err != nil {
 		logger.Warn("PostgreSQL monitor disabled", zap.Error(err))
 	}

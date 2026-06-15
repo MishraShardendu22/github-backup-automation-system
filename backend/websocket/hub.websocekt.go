@@ -47,6 +47,20 @@ func (h *Hub) Run() {
 	}
 }
 
+func HandleWebSocket(c *ws.Conn) {
+	DefaultHub.Register(c)
+	defer DefaultHub.Unregister(c)
+
+	for {
+		_, _, err := c.ReadMessage()
+		if err != nil {
+			break
+		}
+	}
+}
+
+
+// data source (database) is polling.
 func (h *Hub) StartPolling() {
 	go func() {
 		var lastLogID int
@@ -93,16 +107,4 @@ func (h *Hub) StartPolling() {
 			rows.Close()
 		}
 	}()
-}
-
-func HandleWebSocket(c *ws.Conn) {
-	DefaultHub.Register(c)
-	defer DefaultHub.Unregister(c)
-
-	for {
-		_, _, err := c.ReadMessage()
-		if err != nil {
-			break
-		}
-	}
 }

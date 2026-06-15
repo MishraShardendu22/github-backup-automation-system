@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"sync"
 
 	"github.com/MishraShardendu22/github-backup/config"
 	"github.com/MishraShardendu22/github-backup/controller"
@@ -11,24 +12,30 @@ import (
 	"go.uber.org/zap"
 )
 
+/* start and run the backup flow */ 
 func RunBackupFlow(cfg *model.ConfigModel, db *sql.DB) {
-	if err := database.MigrateSchema(db); err != nil {
-		util.Logger().Warn("Schema migration had issues (non-fatal)", zap.Error(err))
-	}
+	// Legacy Code
+	// if err := database.MigrateSchema(db); err != nil {
+	// 	util.Logger().Warn("Schema migration had issues (non-fatal)", zap.Error(err))
+	// }
 
+	// usually not required after first run since they exist
 	if err := database.InitSchema(db); err != nil {
 		util.ErrorHandler(err)
 		return
 	}
 
+	// clean the expired logs
 	if err := database.CleanupExpired(db); err != nil {
 		util.ErrorHandler(err)
 		return
 	}
 
+	// get the urls
 	urls := config.ImportantURL(cfg)
+	
+	// get all repos and remove duplicates
 	allRepos := GetAllRepos(cfg, urls)
-
 	allRepos = deduplicateRepos(allRepos)
 
 	util.Logger().Info("Repositories loaded (after dedup)",
@@ -40,34 +47,68 @@ func RunBackupFlow(cfg *model.ConfigModel, db *sql.DB) {
 		return
 	}
 
+	// print repos then send to processing
 	printRepoList(allRepos)
 	ProcessRepos(allRepos, cfg, db)
 }
 
+/* 
+Get all the repos concurrently (maybe parallely)
+If:
+- machine has multiple CPU cores (almost certainly yes).
+- GOMAXPROCS is greater than 1 (default is number of available CPUs).
+- The Go scheduler chooses to run the goroutines on different OS threads.
+Then the goroutines may execute in parallel.
+*/ 
 func GetAllRepos(config *model.ConfigModel, urls *model.URL) []string {
-	orgReposPersonal := controller.RepoController(urls.GetAllOrgRepos, *config)
-	publicReposPersonal := controller.RepoController(urls.GetAllPublicRepos, *config)
-	privatePersonalAndOrgRepos := controller.RepoControllerPrivate(urls.GetAllPrivateRepos, *config)
+	var wg sync.WaitGroup
 
-	var allRepos []string
-	allRepos = append(allRepos, orgReposPersonal...)
+	var orgRepos []string
+	var publicRepos []string
+	var privateRepos []string
+
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+		orgRepos = controller.RepoController(urls.GetAllOrgRepos, *config)
+	}()
+
+	go func() {
+		defer wg.Done()
+		publicRepos = controller.RepoController(urls.GetAllPublicRepos, *config)
+	}()
+
+	go func() {
+		defer wg.Done()
+		privateRepos = controller.RepoControllerPrivate(urls.GetAllPrivateRepos, *config)
+	}()
+
+	wg.Wait()
+
 	util.Logger().Info("Org repositories loaded",
-		zap.Int("count", len(orgReposPersonal)),
+		zap.Int("count", len(orgRepos)),
 	)
 
-	allRepos = append(allRepos, publicReposPersonal...)
 	util.Logger().Info("Public repositories loaded",
-		zap.Int("count", len(publicReposPersonal)),
+		zap.Int("count", len(publicRepos)),
 	)
 
-	allRepos = append(allRepos, privatePersonalAndOrgRepos...)
 	util.Logger().Info("Private repositories loaded",
-		zap.Int("count", len(privatePersonalAndOrgRepos)),
+		zap.Int("count", len(privateRepos)),
 	)
+
+	allRepos := make([]string, 0,
+		len(orgRepos)+len(publicRepos)+len(privateRepos))
+
+	allRepos = append(allRepos, orgRepos...)
+	allRepos = append(allRepos, publicRepos...)
+	allRepos = append(allRepos, privateRepos...)
 
 	return allRepos
 }
 
+/* remove cuplicate repos */ 
 func deduplicateRepos(repos []string) []string {
 	seen := make(map[string]bool, len(repos))
 	unique := make([]string, 0, len(repos))
@@ -90,6 +131,7 @@ func deduplicateRepos(repos []string) []string {
 	return unique
 }
 
+/* print repos list */ 
 func printRepoList(repos []string) {
 	for _, repo := range repos {
 		util.Logger().Info("Repository discovered",
@@ -98,6 +140,7 @@ func printRepoList(repos []string) {
 	}
 }
 
+/* print summary */ 
 func printBackupSummary(repoNames []string, successCount int, skippedCount int, failedRepos []string) {
 	util.Logger().Info("Backup summary",
 		zap.Int("total", len(repoNames)),

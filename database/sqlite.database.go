@@ -31,4 +31,3 @@ func ConnectSQLite(config *model.ConfigModel) (*sql.DB, error) {
 
 	return db, nil
 }
-

@@ -8,6 +8,8 @@ import (
 
 const staleRunningRunThreshold = 30 * time.Minute
 
+// If a run is marked running but hasn't shown any sign of life for 30+ minutes,
+// assume the process died and clean up the database record.
 func FinalizeStaleRunningRuns(ctx context.Context, threshold time.Duration) (bool, error) {
 	if threshold <= 0 {
 		threshold = staleRunningRunThreshold

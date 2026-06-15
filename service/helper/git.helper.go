@@ -17,6 +17,10 @@ const (
 	cloneTimeout = 20 * time.Minute
 )
 
+/*
+Ensure the repo exist, it does always, 
+if it does not it is created via initialisation script this is just for safety
+*/ 
 func EnsureReposDirExists() error {
 	cmd := exec.Command("mkdir", "-p", "_Repos")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -26,6 +30,10 @@ func EnsureReposDirExists() error {
 	return nil
 }
 
+/*
+Ensure that backup directory(_Repos) exist locally
+if it exists and there is no .git (basically empty) then we will set its remote url (alwasy exist on github) 
+*/ 
 func EnsureBackupRepoInitialized(config *model.ConfigModel) error {
 	if _, err := os.Stat("_Repos/.git"); err == nil {
 		util.Logger().Info("Backup repository already initialized; skipping init")
@@ -56,8 +64,16 @@ func EnsureBackupRepoInitialized(config *model.ConfigModel) error {
 	}, "Initial git setup", pushTimeout)
 }
 
+/*
+git ls-remote, gets the latest commit hash of the repository
+basically what commit does HEAD currently point to 
+
+// this usually happens when the repo exist but its empty (exprience lol)
+if len(fields) == 0 {
+	return "", fmt.Errorf("git ls-remote returned no hash")
+}
+*/ 
 func GetRemoteHeadHash(repoURL string) (string, error) {
-	// get latest hash
 	out, err := exec.Command("git", "ls-remote", repoURL, "HEAD").CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("git ls-remote failed: %v: %s", err, strings.TrimSpace(string(out)))
@@ -71,6 +87,9 @@ func GetRemoteHeadHash(repoURL string) (string, error) {
 	return fields[0], nil
 }
 
+/*
+remove a certain repository
+*/ 
 func CleanupExistingRepo(repoName string) {
 	cleanupCmd := exec.Command("sh", "-c", fmt.Sprintf("cd _Repos && rm -rf '%s' '%s.tar.gz'", repoName, repoName))
 	if _, err := cleanupCmd.CombinedOutput(); err != nil {
@@ -81,13 +100,24 @@ func CleanupExistingRepo(repoName string) {
 	}
 }
 
+/*
+	Shallow clone the working tree (non-bare) 
+	then remove the .git directory so only the latest code remains
+*/ 
 func CloneRepo(url string, repoName string) error {
 	return retryCommand(func() *exec.Cmd {
-		// Shallow clone the working tree (non-bare) and remove the .git directory so only the latest code remains
 		return exec.Command("sh", "-c", fmt.Sprintf("cd _Repos && git clone --depth=1 '%s' '%s' && rm -rf '%s/.git'", url, repoName, repoName))
 	}, fmt.Sprintf("Clone %s", repoName), cloneTimeout)
 }
 
+/*
+    create a shell instace
+	go inside the _Repos, 
+	archive (compressed) the repo (tar -czf)
+		-c: Create a new archive (bundling).
+		-z: Compress the archive using gzip (compression).
+		-f: Specify the filename of the archive.
+*/ 
 func ArchiveRepo(repoName string) error {
 	repoDir := fmt.Sprintf("%s", repoName)
 	archiveName := fmt.Sprintf("%s.tar.gz", repoName)
@@ -106,6 +136,15 @@ func ArchiveRepo(repoName string) error {
 	}, fmt.Sprintf("Archive %s", repoName), cloneTimeout)
 }
 
+/*
+stages a file and creates a git commit only if there are actual changes.
+git diff --staged --quiet
+0 -> no staged changes
+1 -> staged changes exist
+
+--quiet (Don't print output, Just tell me through the exit code whether differences exist.)
+--staged (Only check the staging area)
+*/ 
 func StageAndCommitRepo(repoName string, commitMsg string) {
 	commitCmd := exec.Command("sh", "-c",
 		fmt.Sprintf("cd _Repos && git add '%s' && "+
@@ -123,7 +162,14 @@ func StageAndCommitRepo(repoName string, commitMsg string) {
 	}
 }
 
-func PushBackupRepo(label string) error {
+/*
+this is used to push the commited repo
+core.compression = 0
+    - git push normally compresses objects before sending them.
+	- i am already compressing the files
+	- compressing the commit will be bad as it will waste CPU and gains little. 
+*/ 
+func PushBackupRepo(label string) error { 
 	return retryCommand(func() *exec.Cmd {
 		cmd := exec.Command(
 			"git",
@@ -138,6 +184,9 @@ func PushBackupRepo(label string) error {
 	}, fmt.Sprintf("Push (%s)", label), pushTimeout)
 }
 
+/*
+Initialisation script, usually runs only the first time
+*/ 
 func buildInitScript(backupRepoPath string) string {
 	return fmt.Sprintf(`cd _Repos && \
 		git init && \

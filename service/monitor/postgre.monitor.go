@@ -4,14 +4,16 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"os"
 	"time"
 
+	"github.com/MishraShardendu22/github-backup/config"
 	"github.com/MishraShardendu22/github-backup/util"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
+// already exist so dont need it but adding for safety
+//go:embed schema.sql
 var migrationSQL string
 
 type Monitor struct {
@@ -22,17 +24,46 @@ type Monitor struct {
 
 var instance *Monitor
 
+/*
+Initialize the monitoring system.
+
+1. Read PostgreSQL URL
+	url := config.LoadConfig().PostgreSql
+
+2. Connect to PostgreSQL
+	pool, err := pgxpool.New(ctx, url)
+	- creates a connection pool
+
+3. Verify connection
+	pool.Ping(ctx)
+	- check connection (Verify Database Reachability) 
+
+4. Run migrations
+	// create migration context and cancel (same as standard as context and cancel)
+	migrateCtx, migrateCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer migrateCancel()
+
+	// run the sql of that specific function 
+	if _, err := pool.Exec(migrateCtx, migrationSQL); err != nil {
+		util.Logger().Warn("Monitor: migration failed (tables may already exist)", zap.Error(err))
+	}
+	
+5. Create Monitor singleton
+	Making sure the entire application uses the same Monitor object.
+*/ 
 func Init() error {
-	url := os.Getenv("POSTGRES_URL")
+	url := config.LoadConfig().PostgreSql
 	if url == "" {
 		instance = &Monitor{enabled: false}
 		util.Logger().Info("Monitor: POSTGRES_URL not set — monitoring disabled")
 		return nil
 	}
 
+	// create a context with a timeout value (basic) and cancel() releases resources
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	
 	pool, err := pgxpool.New(ctx, url)
 	if err != nil {
 		instance = &Monitor{enabled: false}
@@ -56,12 +87,14 @@ func Init() error {
 	return nil
 }
 
+// close that instance and connection pool
 func Close() {
 	if instance != nil && instance.pool != nil {
 		instance.pool.Close()
 	}
 }
 
+// get the instance
 func Get() *Monitor {
 	return instance
 }
@@ -83,6 +116,7 @@ func (m *Monitor) StartRun(totalRepos int) {
 	}
 }
 
+// Complete Run marks the started run as completed adn the details of that run are filled
 func (m *Monitor) CompleteRun(successful, failed, skipped int, durationMs int64, errMsg string) {
 	if !m.enabled || m.runID == 0 {
 		return
@@ -101,6 +135,7 @@ func (m *Monitor) CompleteRun(successful, failed, skipped int, durationMs int64,
 	}
 }
 
+// this records the final result for one repository.
 func (m *Monitor) LogRepoResult(repoFullName, status, commitHash string, archiveSize, durationMs int64, errMsg string) {
 	if !m.enabled || m.runID == 0 {
 		return
@@ -116,6 +151,7 @@ func (m *Monitor) LogRepoResult(repoFullName, status, commitHash string, archive
 	}
 }
 
+// insert logs
 func (m *Monitor) Log(level, message, repository string) {
 	if !m.enabled {
 		return
@@ -134,6 +170,7 @@ func (m *Monitor) Log(level, message, repository string) {
 	}
 }
 
+// update progress
 func (m *Monitor) UpdateProgress(successful, failed, skipped int) {
 	if !m.enabled || m.runID == 0 {
 		return

@@ -13,6 +13,7 @@ type ConfigModel struct {
 	ProjectAccount      string
 	GitHubTokenPrivate  string
 	GitHubTokenPersonal string
+	PostgreSql          string
 }
 
 type Repos struct {
@@ -70,4 +71,21 @@ type RepoStats struct {
 	BackedUpRepos int
 	FailedRepos   int
 	LastRunAt     sql.NullTime
+}
+
+type RepoResult struct {
+	FullName    string
+	RepoName    string
+	URL         string
+	CurrentHash string
+	Err         error
+}
+
+type RepoHashResult struct {
+	FullName    string
+	RepoName    string
+	URL         string
+	CurrentHash string
+	HashErr     error
+	Skipped     bool
 }
