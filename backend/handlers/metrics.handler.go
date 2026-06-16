@@ -216,33 +216,63 @@ func GetMetrics(c *fiber.Ctx) error {
 }
 
 func GetLogs(c *fiber.Ctx) error {
-	limit := c.QueryInt("limit", 100)
-	offset := c.QueryInt("offset", 0)
+	page := c.QueryInt("page", 1)
+	if page < 1 {
+		page = 1
+	}
+	limit := c.QueryInt("limit", 50)
+	if limit < 1 {
+		limit = 50
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	offset := (page - 1) * limit
 	level := c.Query("level", "")
 	runID := c.Query("run_id", "")
 
+	countQuery := `SELECT COUNT(*) FROM execution_logs WHERE 1=1`
 	query := `SELECT id, run_id, level, message, repository, created_at FROM execution_logs WHERE 1=1`
+	
 	args := []interface{}{}
 	argIdx := 1
 
 	if level != "" {
-		query += ` AND level = $` + itoa(argIdx)
+		filter := ` AND level = $` + itoa(argIdx)
+		countQuery += filter
+		query += filter
 		args = append(args, level)
 		argIdx++
 	}
 
 	if runID != "" {
-		query += ` AND run_id = $` + itoa(argIdx)
+		filter := ` AND run_id = $` + itoa(argIdx)
+		countQuery += filter
+		query += filter
 		args = append(args, runID)
 		argIdx++
 	}
 
-	// building the base query
-	query += ` ORDER BY created_at DESC LIMIT $` + itoa(argIdx) + ` OFFSET $` + itoa(argIdx+1)
-	args = append(args, limit, offset)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	var totalItems int
+	err := db.Pool.QueryRow(ctx, countQuery, args...).Scan(&totalItems)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	totalPages := totalItems / limit
+	if totalItems%limit > 0 {
+		totalPages++
+	}
+	if totalPages == 0 {
+		totalPages = 1
+	}
+
+	// add pagination to base query
+	query += ` ORDER BY created_at DESC LIMIT $` + itoa(argIdx) + ` OFFSET $` + itoa(argIdx+1)
+	args = append(args, limit, offset)
 
 	rows, err := db.Pool.Query(ctx, query, args...)
 	if err != nil {
@@ -262,7 +292,16 @@ func GetLogs(c *fiber.Ctx) error {
 	if logs == nil {
 		logs = []models.ExecutionLog{}
 	}
-	return c.JSON(logs)
+
+	return c.JSON(models.PaginatedResponse{
+		Data: logs,
+		Pagination: models.PaginationMeta{
+			Page:       page,
+			Limit:      limit,
+			TotalItems: totalItems,
+			TotalPages: totalPages,
+		},
+	})
 }
 
 func itoa(i int) string {

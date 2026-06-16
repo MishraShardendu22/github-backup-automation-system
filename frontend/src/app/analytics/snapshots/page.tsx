@@ -9,33 +9,36 @@ import { AnalyticsSubNav } from "@/components/analytics/analytics-sub-nav";
 
 export default function SnapshotsPage() {
   const [snapshots, setSnapshots] = useState<RepoAnalyticsSnapshot[]>([]);
+  const [latestSnapshot, setLatestSnapshot] = useState<RepoAnalyticsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     setLoading(true);
     setError(false);
-    getAnalyticsHistory()
-      .then(setSnapshots)
+    getAnalyticsHistory(page, pageSize)
+      .then((res) => {
+        setSnapshots(res.data);
+        setTotalItems(res.pagination.total_items);
+        setTotalPages(res.pagination.total_pages);
+        if (page === 1 && res.data.length > 0) {
+          setLatestSnapshot(res.data[0]);
+        }
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
-
-  const totalPages = Math.max(1, Math.ceil(snapshots.length / pageSize));
-  const paginated = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return snapshots.slice(start, start + pageSize);
-  }, [snapshots, page, pageSize]);
+  }, [page, pageSize]);
 
   const handlePageSize = (s: number) => {
     setPageSize(s);
     setPage(1);
   };
 
-  // Totals across all snapshots for the header summary
-  const latest = snapshots[0] ?? null;
+  const latest = latestSnapshot;
 
   return (
     <>
@@ -135,7 +138,7 @@ export default function SnapshotsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginated.map((snap) => (
+                    {snapshots.map((snap) => (
                       <tr key={snap.id}>
                         <td className="text-xs">{formatDate(snap.captured_at)}</td>
                         <td
@@ -167,7 +170,7 @@ export default function SnapshotsPage() {
                 page={page}
                 totalPages={totalPages}
                 pageSize={pageSize}
-                totalItems={snapshots.length}
+                totalItems={totalItems}
                 onPage={setPage}
                 onPageSize={handlePageSize}
               />

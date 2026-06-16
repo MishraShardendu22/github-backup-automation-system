@@ -23,13 +23,36 @@ import (
 */
 
 func GetBackupRuns(c *fiber.Ctx) error {
-	limit := c.QueryInt("limit", 20)
-	offset := c.QueryInt("offset", 0)
+	page := c.QueryInt("page", 1)
+	if page < 1 {
+		page = 1
+	}
+	limit := c.QueryInt("limit", 50)
+	if limit < 1 {
+		limit = 50
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	offset := (page - 1) * limit
 
-	// mark the stale run first
 	ctx := context.Background()
 	if _, err := db.FinalizeStaleRunningRuns(ctx, 30*time.Minute); err != nil {
 		_ = err
+	}
+
+	var totalItems int
+	err := db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM backup_runs").Scan(&totalItems)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	totalPages := totalItems / limit
+	if totalItems%limit > 0 {
+		totalPages++
+	}
+	if totalPages == 0 {
+		totalPages = 1
 	}
 
 	rows, err := db.Pool.Query(ctx,
@@ -40,27 +63,29 @@ func GetBackupRuns(c *fiber.Ctx) error {
 	}
 	defer rows.Close()
 
-	// populate the run data
 	var runs []models.BackupRun
 	for rows.Next() {
 		var r models.BackupRun
-
-		// if error found while scanning return that
 		if err := rows.Scan(&r.ID, &r.Status, &r.StartedAt, &r.CompletedAt, &r.TotalRepos,
 			&r.Successful, &r.Failed, &r.Skipped, &r.DurationMs, &r.ErrorMessage); err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
-
-		// append all indivisual run data
 		runs = append(runs, r)
 	}
 
-	// no runs
 	if runs == nil {
 		runs = []models.BackupRun{}
 	}
 
-	return c.JSON(runs)
+	return c.JSON(models.PaginatedResponse{
+		Data: runs,
+		Pagination: models.PaginationMeta{
+			Page:       page,
+			Limit:      limit,
+			TotalItems: totalItems,
+			TotalPages: totalPages,
+		},
+	})
 }
 
 func GetBackupRun(c *fiber.Ctx) error {

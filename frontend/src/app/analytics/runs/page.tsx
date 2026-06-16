@@ -1,39 +1,34 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getMetrics } from "@/lib/api";
+import { getBackupRuns } from "@/lib/api";
 import type { BackupRun } from "@/lib/types";
 import { formatDate, formatDuration } from "@/lib/utils";
 import { PaginationBar } from "@/components/analytics/pagination-bar";
 import { AnalyticsSubNav } from "@/components/analytics/analytics-sub-nav";
 import Link from "next/link";
 
-const DAY_OPTIONS = [7, 14, 30, 90] as const;
-type DayOption = (typeof DAY_OPTIONS)[number];
-
 export default function RunHistoryPage() {
-  const [days, setDays] = useState<DayOption>(30);
   const [runs, setRuns] = useState<BackupRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     setLoading(true);
     setError(false);
-    setPage(1);
-    getMetrics(days)
-      .then((data) => setRuns(data?.runs ?? []))
+    getBackupRuns(page, pageSize)
+      .then((res) => {
+        setRuns(res.data);
+        setTotalItems(res.pagination.total_items);
+        setTotalPages(res.pagination.total_pages);
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [days]);
-
-  const totalPages = Math.max(1, Math.ceil(runs.length / pageSize));
-  const paginated = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return runs.slice(start, start + pageSize);
-  }, [runs, page, pageSize]);
+  }, [page, pageSize]);
 
   const handlePageSize = (s: number) => {
     setPageSize(s);
@@ -49,24 +44,9 @@ export default function RunHistoryPage() {
             <div className="page-kicker">Analytics · Run History</div>
             <h1 className="page-title">Backup Runs</h1>
             <p className="page-subtitle">
-              Full paginated history of all backup runs within the selected time
-              window. Click a run to see per-repository results.
+              Full paginated history of all backup runs. Click a run to see per-repository results.
             </p>
           </div>
-
-          <nav className="segmented" aria-label="Day range" style={{ alignSelf: "flex-start" }}>
-            {DAY_OPTIONS.map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => setDays(opt)}
-                className={`segmented-btn${days === opt ? " segmented-btn--active" : ""}`}
-                aria-pressed={days === opt}
-              >
-                {opt}d
-              </button>
-            ))}
-          </nav>
         </div>
 
         <AnalyticsSubNav />
@@ -79,7 +59,7 @@ export default function RunHistoryPage() {
               Failed to load run history. Check the backend is running.
             </p>
           ) : runs.length === 0 ? (
-            <EmptyRuns days={days} />
+            <EmptyRuns />
           ) : (
             <>
               <div className="table-wrap">
@@ -98,7 +78,7 @@ export default function RunHistoryPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginated.map((run) => (
+                    {runs.map((run) => (
                       <tr key={run.id}>
                         <td style={{ fontWeight: 600 }}>#{run.id}</td>
                         <td>
@@ -141,7 +121,7 @@ export default function RunHistoryPage() {
                 page={page}
                 totalPages={totalPages}
                 pageSize={pageSize}
-                totalItems={runs.length}
+                totalItems={totalItems}
                 onPage={setPage}
                 onPageSize={handlePageSize}
               />
@@ -162,14 +142,14 @@ function Spinner() {
   );
 }
 
-function EmptyRuns({ days }: { days: number }) {
+function EmptyRuns() {
   return (
     <div style={{ padding: "40px 0", textAlign: "center", color: "var(--text-muted)" }}>
       <p style={{ fontWeight: 600, fontSize: 14, color: "var(--text-secondary)" }}>
-        No runs in the last {days} days
+        No runs found
       </p>
       <p style={{ fontSize: 13, marginTop: 6 }}>
-        Try selecting a longer range, or start the backup worker.
+        Start the backup worker to create a backup run.
       </p>
     </div>
   );

@@ -18,9 +18,9 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // ─── Backups ────────────────────────────────────────────────────────────────
-export const getBackupRuns = (limit = 20, offset = 0) =>
-  fetchAPI<import("./types").BackupRun[]>(
-    `/api/backups?limit=${limit}&offset=${offset}`
+export const getBackupRuns = (page = 1, limit = 50) =>
+  fetchAPI<import("./types").PaginatedResponse<import("./types").BackupRun>>(
+    `/api/backups?page=${page}&limit=${limit}`
   );
 
 export const getBackupRun = (id: number) =>
@@ -41,21 +41,21 @@ export const getMetrics = (days = 30) =>
   fetchAPI<import("./types").MetricsData>(`/api/metrics?days=${days}`);
 
 // ─── Logs ───────────────────────────────────────────────────────────────────
-export const getLogs = (limit = 100, level?: string, runId?: string) => {
-  let url = `/api/logs?limit=${limit}`;
+export const getLogs = (page = 1, limit = 100, level?: string, runId?: string) => {
+  let url = `/api/logs?page=${page}&limit=${limit}`;
   if (level) url += `&level=${level}`;
   if (runId) url += `&run_id=${runId}`;
-  return fetchAPI<import("./types").ExecutionLog[]>(url);
+  return fetchAPI<import("./types").PaginatedResponse<import("./types").ExecutionLog>>(url);
 };
 
 // ─── Repos ──────────────────────────────────────────────────────────────────
-export const getRepos = () =>
-  fetchAPI<import("./types").RepoInfo[]>("/api/repos");
+export const getRepos = (page = 1, limit = 50) =>
+  fetchAPI<import("./types").PaginatedResponse<import("./types").RepoInfo>>(`/api/repos?page=${page}&limit=${limit}`);
 
 // ─── Analytics ──────────────────────────────────────────────────────────────
 /** All analytics snapshots ordered by captured_at DESC */
-export const getAnalyticsHistory = () =>
-  fetchAPI<import("./types").RepoAnalyticsSnapshot[]>("/api/analytics/history");
+export const getAnalyticsHistory = (page = 1, limit = 50) =>
+  fetchAPI<import("./types").PaginatedResponse<import("./types").RepoAnalyticsSnapshot>>(`/api/analytics/history?page=${page}&limit=${limit}`);
 
 /** Latest analytics snapshot (most recent captured_at) */
 export const getAnalyticsLatest = () =>

@@ -5,12 +5,40 @@ import (
 	"time"
 
 	"github.com/MishraShardendu22/github-backup/backend/db"
+	"github.com/MishraShardendu22/github-backup/backend/models"
 	"github.com/gofiber/fiber/v2"
 )
 
 func GetRepos(c *fiber.Ctx) error {
+	page := c.QueryInt("page", 1)
+	if page < 1 {
+		page = 1
+	}
+	limit := c.QueryInt("limit", 50)
+	if limit < 1 {
+		limit = 50
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	offset := (page - 1) * limit
+
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+
+	var totalItems int
+	err := db.Pool.QueryRow(ctx, "SELECT COUNT(DISTINCT repo_full_name) FROM backup_results").Scan(&totalItems)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	totalPages := totalItems / limit
+	if totalItems%limit > 0 {
+		totalPages++
+	}
+	if totalPages == 0 {
+		totalPages = 1
+	}
 
 	rows, err := db.Pool.Query(ctx,
 		`SELECT repo_full_name, status, commit_hash, archive_size_bytes, created_at
@@ -20,7 +48,8 @@ func GetRepos(c *fiber.Ctx) error {
 		     FROM backup_results
 		     ORDER BY repo_full_name, archive_size_bytes DESC, created_at DESC
 		 ) ranked_repos
-		 ORDER BY archive_size_bytes DESC, created_at DESC`)
+		 ORDER BY archive_size_bytes DESC, created_at DESC
+		 LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -50,7 +79,16 @@ func GetRepos(c *fiber.Ctx) error {
 	if repos == nil {
 		repos = []RepoInfo{}
 	}
-	return c.JSON(repos)
+
+	return c.JSON(models.PaginatedResponse{
+		Data: repos,
+		Pagination: models.PaginationMeta{
+			Page:       page,
+			Limit:      limit,
+			TotalItems: totalItems,
+			TotalPages: totalPages,
+		},
+	})
 }
 
 /*

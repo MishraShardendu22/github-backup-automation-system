@@ -12,3 +12,5 @@ frontend/.env.local
 
 # Go binary
 github-backup
+
+api_responses

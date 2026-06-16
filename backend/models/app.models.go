@@ -4,6 +4,19 @@ import (
 	"time"
 )
 
+type PaginationMeta struct {
+	Page       int `json:"page"`
+	Limit      int `json:"limit"`
+	TotalItems int `json:"total_items"`
+	TotalPages int `json:"total_pages"`
+}
+
+type PaginatedResponse struct {
+	Data       interface{}    `json:"data"`
+	Pagination PaginationMeta `json:"pagination"`
+}
+
+
 type BackupRun struct {
 	StartedAt    time.Time  `json:"started_at"`
 	Status       string     `json:"status"`

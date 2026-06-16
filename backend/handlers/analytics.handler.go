@@ -10,11 +10,42 @@ import (
 )
 
 func GetAnalyticsRuns(c *fiber.Ctx) error {
-	rows, err := db.Pool.Query( context.Background(),`
+	page := c.QueryInt("page", 1)
+	if page < 1 {
+		page = 1
+	}
+	limit := c.QueryInt("limit", 50)
+	if limit < 1 {
+		limit = 50
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	offset := (page - 1) * limit
+
+	ctx := context.Background()
+
+	var totalItems int
+	err := db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM analytics_snapshots").Scan(&totalItems)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	totalPages := totalItems / limit
+	if totalItems%limit > 0 {
+		totalPages++
+	}
+	if totalPages == 0 {
+		totalPages = 1
+	}
+
+	rows, err := db.Pool.Query(ctx, `
 		SELECT id, run_id, captured_at, head_commit, head_commit_message, head_commit_at, total_commits, branch_count, tag_count, tracked_files, total_blob_size_bytes, avg_blob_size_bytes, largest_blob_path, largest_blob_size_bytes, archive_count, total_archive_size_bytes, avg_archive_size_bytes, largest_archive_path, largest_archive_size_bytes
 		FROM analytics_snapshots
 		ORDER BY captured_at DESC
+		LIMIT $1 OFFSET $2
 		`,
+		limit, offset,
 	)
 
 	if err != nil {
@@ -35,7 +66,19 @@ func GetAnalyticsRuns(c *fiber.Ctx) error {
 		snapshots = append(snapshots, snapshot)
 	}
 
-	return c.JSON(snapshots)
+	if snapshots == nil {
+		snapshots = []models.RepoAnalyticsSnapshot{}
+	}
+
+	return c.JSON(models.PaginatedResponse{
+		Data: snapshots,
+		Pagination: models.PaginationMeta{
+			Page:       page,
+			Limit:      limit,
+			TotalItems: totalItems,
+			TotalPages: totalPages,
+		},
+	})
 }
 
 func GetAnalyticsForLatestRun(c *fiber.Ctx) error {
