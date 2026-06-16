@@ -65,11 +65,11 @@ type ReportHistory struct {
 }
 
 type RepoAnalyticsSnapshot struct {
-	CapturedAt         time.Time  `json:"captured_at"`
-	HeadCommit         string     `json:"head_commit"`
-	HeadCommitMessage  string     `json:"head_commit_message"`
-	LargestArchivePath string     `json:"largest_archive_path"`
-	LargestBlobPath    string     `json:"largest_blob_path"`
+	CapturedAt         time.Time `json:"captured_at"`
+	HeadCommit         string    `json:"head_commit"`
+	HeadCommitMessage  string    `json:"head_commit_message"`
+	LargestArchivePath string    `json:"largest_archive_path"`
+	LargestBlobPath    string    `json:"largest_blob_path"`
 
 	TotalBlobSizeBytes      int64 `json:"total_blob_size_bytes"`
 	AvgBlobSizeBytes        int64 `json:"avg_blob_size_bytes"`

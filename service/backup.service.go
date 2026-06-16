@@ -144,7 +144,7 @@ func printRepoList(repos []string) {
 
 /* print summary */
 func printBackupSummaryFillAnalytics(repoNames []string, successCount int, skippedCount int, failedRepos []string, mon *monitor.Monitor) {
-	err := collect.GenerateAnalytics(repoNames,mon)
+	err := collect.GenerateAnalytics(mon)
 	if err != nil {
 		util.Logger().Error(
 			"Analytics generation failed",

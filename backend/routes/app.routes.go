@@ -27,6 +27,11 @@ func Setup(app *fiber.App) {
 	// repos handler
 	api.Get("/repos", handlers.GetRepos)
 
+	// analytics handler
+	api.Get("/analytics/history", handlers.GetAnalyticsRuns)
+	api.Get("/analytics/latest", handlers.GetAnalyticsForLatestRun)
+	api.Get("/analytics/:id", handlers.GetAnalyticsForSpecificRun)
+
 	// checks the /ws routes whether the incoming request is asking for a WebSocket upgrade.
 	app.Use("/ws", func(c *fiber.Ctx) error {
 		//if yes, it's asking for upgrade then go to the next function
