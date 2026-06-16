@@ -17,25 +17,30 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-// Backups
+// ─── Backups ────────────────────────────────────────────────────────────────
 export const getBackupRuns = (limit = 20, offset = 0) =>
-  fetchAPI<import("./types").BackupRun[]>(`/api/backups?limit=${limit}&offset=${offset}`);
+  fetchAPI<import("./types").BackupRun[]>(
+    `/api/backups?limit=${limit}&offset=${offset}`
+  );
 
 export const getBackupRun = (id: number) =>
-  fetchAPI<{ run: import("./types").BackupRun; results: import("./types").BackupResult[] }>(`/api/backups/${id}`);
+  fetchAPI<{
+    run: import("./types").BackupRun;
+    results: import("./types").BackupResult[];
+  }>(`/api/backups/${id}`);
 
 export const getLatestBackup = () =>
   fetchAPI<{ run: import("./types").BackupRun | null }>("/api/backups/latest");
 
-// Dashboard
+// ─── Dashboard ──────────────────────────────────────────────────────────────
 export const getDashboardStats = () =>
   fetchAPI<import("./types").DashboardStats>("/api/dashboard/stats");
 
-// Metrics
+// ─── Metrics ────────────────────────────────────────────────────────────────
 export const getMetrics = (days = 30) =>
   fetchAPI<import("./types").MetricsData>(`/api/metrics?days=${days}`);
 
-// Logs
+// ─── Logs ───────────────────────────────────────────────────────────────────
 export const getLogs = (limit = 100, level?: string, runId?: string) => {
   let url = `/api/logs?limit=${limit}`;
   if (level) url += `&level=${level}`;
@@ -43,41 +48,19 @@ export const getLogs = (limit = 100, level?: string, runId?: string) => {
   return fetchAPI<import("./types").ExecutionLog[]>(url);
 };
 
-// Repos
+// ─── Repos ──────────────────────────────────────────────────────────────────
 export const getRepos = () =>
   fetchAPI<import("./types").RepoInfo[]>("/api/repos");
 
-// AI
-export const postChat = (message: string, conversationId?: number, webSearch = false) =>
-  fetchAPI<{ conversation_id: number; message: string; tokens_used: number; web_search: boolean; model: string; sources?: import("./types").ChatSource[] }>(
-    "/api/ai/chat",
-    {
-      method: "POST",
-      body: JSON.stringify({ message, conversation_id: conversationId, web_search: webSearch }),
-    }
-  );
+// ─── Analytics ──────────────────────────────────────────────────────────────
+/** All analytics snapshots ordered by captured_at DESC */
+export const getAnalyticsHistory = () =>
+  fetchAPI<import("./types").RepoAnalyticsSnapshot[]>("/api/analytics/history");
 
-export const getConversations = () =>
-  fetchAPI<import("./types").Conversation[]>("/api/ai/conversations");
+/** Latest analytics snapshot (most recent captured_at) */
+export const getAnalyticsLatest = () =>
+  fetchAPI<import("./types").RepoAnalyticsSnapshot>("/api/analytics/latest");
 
-export const getConversation = (id: number) =>
-  fetchAPI<import("./types").ChatMessage[]>(`/api/ai/conversations/${id}`);
-
-export const deleteConversation = (id: number) =>
-  fetchAPI<{ deleted: boolean }>(`/api/ai/conversations/${id}`, { method: "DELETE" });
-
-// Reports
-export const getLatestReport = (reportType = "latest") =>
-  fetchAPI<import("./types").ReportBundle>("/api/reports/latest", {
-    method: "POST",
-    body: JSON.stringify({ report_type: reportType }),
-  });
-
-export const sendReport = (reportType: string) =>
-  fetchAPI<{ sent: boolean; subject: string; to: string; report?: import("./types").ReportBundle }>("/api/reports/send", {
-    method: "POST",
-    body: JSON.stringify({ report_type: reportType }),
-  });
-
-export const getReportHistory = () =>
-  fetchAPI<Array<{ id: number; report_type: string; recipients: string; subject: string; status: string; sent_at: string }>>("/api/reports/history");
+/** Analytics snapshot for a specific run ID */
+export const getAnalyticsForRun = (id: number) =>
+  fetchAPI<import("./types").RepoAnalyticsSnapshot>(`/api/analytics/${id}`);

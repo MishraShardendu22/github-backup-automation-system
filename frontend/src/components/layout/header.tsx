@@ -2,11 +2,10 @@ import Link from "next/link";
 import HeaderNav from "@/components/layout/header-nav";
 
 const navItems = [
-  { href: "/", label: "Overview" },
+  { href: "/", label: "Dashboard" },
   { href: "/backups", label: "Backups" },
-  { href: "/metrics", label: "Metrics" },
-  { href: "/live", label: "Monitor" },
-  { href: "/assistant", label: "AI" },
+  { href: "/analytics", label: "Analytics" },
+  { href: "/live", label: "Live" },
 ];
 
 export default function Header() {

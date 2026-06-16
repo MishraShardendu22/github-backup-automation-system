@@ -7,16 +7,14 @@ import {
   History,
   BarChart3,
   Radio,
-  Bot,
   GitBranch,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/backups", label: "Backup History", icon: History },
-  { href: "/metrics", label: "Metrics", icon: BarChart3 },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/live", label: "Live Monitor", icon: Radio },
-  { href: "/assistant", label: "AI Assistant", icon: Bot },
 ];
 
 export default function Sidebar() {
@@ -76,7 +74,7 @@ export default function Sidebar() {
                 marginBottom: 2,
                 textDecoration: "none",
                 color: isActive ? "var(--accent)" : "var(--text-secondary)",
-                background: isActive ? "rgba(99, 102, 241, 0.08)" : "transparent",
+                background: isActive ? "rgba(212, 168, 50, 0.08)" : "transparent",
                 transition: "all 0.15s",
               }}
             >

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { BackupRun, DashboardStats } from "@/lib/types";
 import { formatBytes, formatDate, formatDuration } from "@/lib/utils";
 
@@ -5,74 +6,30 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 async function fetchStats(): Promise<DashboardStats | null> {
   try {
-    const res = await fetch(`${API}/api/dashboard/stats`, {
-      cache: "no-store",
-    });
+    const res = await fetch(`${API}/api/dashboard/stats`, { cache: "no-store" });
     return res.ok ? res.json() : null;
   } catch {
     return null;
   }
 }
 
-async function fetchRecentRuns(): Promise<BackupRun[]> {
+async function fetchLatestRun(): Promise<BackupRun | null> {
   try {
-    const res = await fetch(`${API}/api/backups?limit=5`, {
-      cache: "no-store",
-    });
-    return res.ok ? res.json() : [];
+    const res = await fetch(`${API}/api/backups/latest`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const data: { run: BackupRun | null } = await res.json();
+    return data.run;
   } catch {
-    return [];
-  }
-}
-
-async function fetchRepos(): Promise<
-  Array<{ full_name: string; last_status: string; archive_size_bytes: number }>
-> {
-  try {
-    const res = await fetch(`${API}/api/repos`, { cache: "no-store" });
-    return res.ok ? res.json() : [];
-  } catch {
-    return [];
+    return null;
   }
 }
 
 export default async function DashboardPage() {
-  const [stats, runs, repos] = await Promise.all([
-    fetchStats(),
-    fetchRecentRuns(),
-    fetchRepos(),
-  ]);
-
-  const latestRun = runs.length > 0 ? runs[0] : null;
-  const latestAnalytics = stats?.latest_analytics ?? null;
-  const analyticsArchiveSize = latestAnalytics?.total_archive_size_bytes ?? 0;
-  const totalSize =
-    (stats?.total_size_bytes && stats.total_size_bytes > 0
-      ? stats.total_size_bytes
-      : null) ??
-    (analyticsArchiveSize > 0 ? analyticsArchiveSize : null) ??
-    repos.reduce((a, r) => a + (r.archive_size_bytes || 0), 0);
-  const failureCount = stats?.total_failed ?? 0;
-  const totalLogs =
-    (stats?.total_logs && stats.total_logs > 0 ? stats.total_logs : null) ?? 0;
-  const distinctRepos =
-    (stats?.distinct_repos && stats.distinct_repos > 0
-      ? stats.distinct_repos
-      : null) ??
-    (latestAnalytics?.tracked_files && latestAnalytics.tracked_files > 0
-      ? latestAnalytics.tracked_files
-      : null) ??
-    repos.length;
-
-  const topRepos = [...repos]
-    .sort((a, b) => b.archive_size_bytes - a.archive_size_bytes)
-    .slice(0, 6);
-
-  const recentRuns = runs.slice(0, 4);
-  const latestRepo = topRepos[0];
+  const [stats, latestRun] = await Promise.all([fetchStats(), fetchLatestRun()]);
 
   return (
     <div className="page">
+      {/* ── Hero ──────────────────────────────────────────────────────── */}
       <section className="hero-grid">
         <div className="card hero-card">
           <div className="hero-glow" />
@@ -80,14 +37,14 @@ export default async function DashboardPage() {
             <div className="page-kicker">Backup operations</div>
             <h1 className="hero-title">Backup Observatory</h1>
             <p className="hero-subtitle">
-              A PostgreSQL-backed overview of backup activity, repository sizes,
-              run outcomes, and live worker health.
+              Monitor your GitHub repository backups — run health, storage
+              usage, and live worker status at a glance.
             </p>
             <div className="hero-tags">
               <span className="pill">PostgreSQL</span>
               <span className="pill">Execution logs</span>
               <span className="pill">Repo archive sizes</span>
-              <span className="pill">Run history</span>
+              <span className="pill">Git snapshots</span>
             </div>
           </div>
         </div>
@@ -95,182 +52,238 @@ export default async function DashboardPage() {
         <div className="hero-stack">
           <div className="stat-card stat-card--compact">
             <div className="stat-label">Latest run</div>
-            <div className="stat-value stat-value--md">
-              {latestRun ? latestRun.status : "No run yet"}
-            </div>
-            <div className="text-xs text-muted">
-              {latestRun
-                ? formatDate(latestRun.started_at)
-                : "Waiting for the first backup"}
-            </div>
-          </div>
-          <div className="stat-card stat-card--compact">
-            <div className="stat-label">Largest repository</div>
-            <div className="stat-value stat-value--md truncate">
-              {latestRepo?.full_name ?? stats?.largest_repository ?? "—"}
-            </div>
-            <div className="text-xs text-muted">
-              {formatBytes(
-                stats?.largest_archive_bytes ??
-                  latestRepo?.archive_size_bytes ??
-                  0,
+            <div style={{ marginTop: 6 }}>
+              {latestRun ? (
+                <span
+                  className={`badge ${
+                    latestRun.status === "completed"
+                      ? "badge-success"
+                      : latestRun.status === "running"
+                        ? "badge-running"
+                        : "badge-error"
+                  }`}
+                >
+                  {latestRun.status}
+                </span>
+              ) : (
+                <span className="text-muted" style={{ fontSize: 13 }}>No run yet</span>
               )}
             </div>
-          </div>
-          <div className="stat-card stat-card--compact">
-            <div className="stat-label">Largest blob</div>
-            <div className="stat-value stat-value--md truncate">
-              {latestAnalytics?.largest_blob_path ?? "—"}
+            <div className="text-xs text-muted" style={{ marginTop: 6 }}>
+              {latestRun ? formatDate(latestRun.started_at) : "Start the backup worker"}
             </div>
-            <div className="text-xs text-muted">
-              {latestAnalytics
-                ? formatBytes(latestAnalytics.largest_blob_size_bytes)
-                : "Waiting for analytics snapshot"}
+          </div>
+
+          <div className="stat-card stat-card--compact">
+            <div className="stat-label">Success rate</div>
+            <div className="stat-value stat-value--md">
+              {stats?.success_rate && stats.success_rate > 0
+                ? `${stats.success_rate.toFixed(0)}%`
+                : "—"}
+            </div>
+            <div className="text-xs text-muted" style={{ marginTop: 6 }}>
+              {stats?.total_runs ?? 0} total runs
+            </div>
+          </div>
+
+          <div className="stat-card stat-card--compact">
+            <div className="stat-label">Total backup size</div>
+            <div className="stat-value stat-value--md">
+              {formatBytes(stats?.total_size_bytes ?? 0)}
+            </div>
+            <div className="text-xs text-muted" style={{ marginTop: 6 }}>
+              {stats?.distinct_repos ?? 0} distinct repos
             </div>
           </div>
         </div>
       </section>
 
-      <div className="metric-grid metric-grid--six stats-grid">
+      {/* ── 4 KPI tiles ──────────────────────────────────────────────── */}
+      <div className="metric-grid metric-grid--four stats-grid">
         <div className="stat-card">
-          <div className="stat-label">Total runs</div>
-          <div className="stat-value">{stats?.total_runs ?? 0}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Distinct repos</div>
-          <div className="stat-value">{distinctRepos}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Success rate</div>
+          <div className="stat-label">Avg duration</div>
           <div className="stat-value">
-            {stats?.success_rate && stats.success_rate > 0
-              ? `${stats.success_rate.toFixed(0)}%`
-              : "—"}
+            {stats?.avg_duration_ms ? formatDuration(stats.avg_duration_ms) : "—"}
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Total size</div>
-          <div className="stat-value">{formatBytes(totalSize)}</div>
+          <div className="stat-label">Successful repos</div>
+          <div className="stat-value stat-value--success">
+            {stats?.total_successful ?? 0}
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Failed repos</div>
+          <div className="stat-value stat-value--danger">
+            {stats?.total_failed ?? 0}
+          </div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Logs stored</div>
-          <div className="stat-value">{totalLogs}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Failures</div>
-          <div className="stat-value stat-value--danger">{failureCount}</div>
+          <div className="stat-value">{stats?.total_logs ?? 0}</div>
         </div>
       </div>
 
-      <div className="card section-card">
-        <div className="section-title">Git snapshot</div>
-        <div className="section-desc">
-          Backend-collected repository analytics refreshed from the live _Repos
-          checkout.
-        </div>
-        {latestAnalytics ? (
-          <div className="metric-grid metric-grid--six">
-            <div className="card-flat">
-              <div className="stat-label">Commits</div>
-              <div className="stat-value stat-value--md">
-                {latestAnalytics.total_commits}
+      {/* ── Latest run quick-card ─────────────────────────────────────── */}
+      {latestRun && (
+        <section className="card section-card">
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <div className="section-title">Latest backup run — #{latestRun.id}</div>
+              <div className="section-desc">
+                Started {formatDate(latestRun.started_at)} · {formatDuration(latestRun.duration_ms)}
               </div>
             </div>
-            <div className="card-flat">
-              <div className="stat-label">Branches</div>
-              <div className="stat-value stat-value--md">
-                {latestAnalytics.branch_count}
-              </div>
-            </div>
-            <div className="card-flat">
-              <div className="stat-label">Tags</div>
-              <div className="stat-value stat-value--md">
-                {latestAnalytics.tag_count}
-              </div>
-            </div>
-            <div className="card-flat">
-              <div className="stat-label">Tracked files</div>
-              <div className="stat-value stat-value--md">
-                {latestAnalytics.tracked_files}
-              </div>
-            </div>
-            <div className="card-flat">
-              <div className="stat-label">Avg blob size</div>
-              <div className="stat-value stat-value--md">
-                {formatBytes(latestAnalytics.avg_blob_size_bytes)}
-              </div>
-            </div>
-            <div className="card-flat">
-              <div className="stat-label">Archive count</div>
-              <div className="stat-value stat-value--md">
-                {latestAnalytics.archive_count}
-              </div>
-            </div>
+            <Link href={`/backups/${latestRun.id}`} className="btn btn-outline" style={{ fontSize: 12 }}>
+              View full results →
+            </Link>
           </div>
-        ) : (
-          <div className="text-sm text-muted" style={{ paddingTop: 12 }}>
-            Analytics snapshot will appear once the backend collector runs.
-          </div>
-        )}
-      </div>
 
-      <div className="card">
-        <div className="section-title">Recent runs</div>
-        <div className="section-desc">
-          The latest persisted backup_runs entries, with outcomes and durations.
-        </div>
-        {recentRuns.length === 0 ? (
-          <div className="text-sm text-muted" style={{ padding: "16px 0" }}>
-            No runs yet
+          <div className="metric-grid metric-grid--four" style={{ marginTop: 16 }}>
+            <div className="card-flat">
+              <div className="stat-label">Repos backed up</div>
+              <div className="stat-value stat-value--md">{latestRun.total_repos}</div>
+            </div>
+            <div className="card-flat">
+              <div className="stat-label">Successful</div>
+              <div className="stat-value stat-value--md stat-value--success">
+                {latestRun.successful}
+              </div>
+            </div>
+            <div className="card-flat">
+              <div className="stat-label">Failed</div>
+              <div
+                className="stat-value stat-value--md"
+                style={{ color: latestRun.failed > 0 ? "var(--danger)" : "inherit" }}
+              >
+                {latestRun.failed}
+              </div>
+            </div>
+            <div className="card-flat">
+              <div className="stat-label">Skipped</div>
+              <div className="stat-value stat-value--md text-muted">
+                {latestRun.skipped}
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="table-wrap">
-            <table className="table table-wide">
-              <thead>
-                <tr>
-                  <th>Run</th>
-                  <th>Status</th>
-                  <th>Repos</th>
-                  <th>Success</th>
-                  <th>Failed</th>
-                  <th>Skipped</th>
-                  <th>Duration</th>
-                  <th>Started</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentRuns.map((run) => (
-                  <tr key={run.id}>
-                    <td data-label="Run">#{run.id}</td>
-                    <td data-label="Status">
-                      <span
-                        className={`badge ${run.status === "completed" ? "badge-success" : run.status === "running" ? "badge-running" : "badge-error"}`}
-                      >
-                        {run.status}
-                      </span>
-                    </td>
-                    <td data-label="Repos">{run.total_repos}</td>
-                    <td
-                      data-label="Success"
-                      style={{ color: "var(--success)" }}
-                    >
-                      {run.successful}
-                    </td>
-                    <td data-label="Failed" style={{ color: "var(--danger)" }}>
-                      {run.failed}
-                    </td>
-                    <td data-label="Skipped">{run.skipped}</td>
-                    <td data-label="Duration">
-                      {formatDuration(run.duration_ms)}
-                    </td>
-                    <td data-label="Started">{formatDate(run.started_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        </section>
+      )}
+
+      {/* ── Navigation cards ──────────────────────────────────────────── */}
+      <div className="metric-grid metric-grid--four">
+        <NavCard
+          href="/backups"
+          title="Backup History"
+          desc="All past runs and per-repo results"
+          icon={
+            <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+          }
+        />
+        <NavCard
+          href="/analytics"
+          title="Analytics"
+          desc="Charts and trend overview"
+          icon={
+            <>
+              <path d="M3 3v18h18" />
+              <path d="M7 16l4-4 4 4 4-6" />
+            </>
+          }
+        />
+        <NavCard
+          href="/analytics/runs"
+          title="Run History"
+          desc="Full paginated run table"
+          icon={
+            <>
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18M9 21V9" />
+            </>
+          }
+        />
+        <NavCard
+          href="/analytics/snapshots"
+          title="Git Snapshots"
+          desc="Repository analytics history"
+          icon={
+            <>
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" />
+            </>
+          }
+        />
       </div>
     </div>
+  );
+}
+
+function NavCard({
+  href,
+  title,
+  desc,
+  icon,
+}: {
+  href: string;
+  title: string;
+  desc: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <Link href={href} style={{ textDecoration: "none" }}>
+      <div
+        className="card"
+        style={{
+          padding: "18px 20px",
+          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          height: "100%",
+          transition: "border-color 0.15s",
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 9,
+            background: "rgba(212,168,50,0.1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--accent)"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            {icon}
+          </svg>
+        </div>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>
+            {title}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>
+            {desc}
+          </div>
+        </div>
+      </div>
+    </Link>
   );
 }

@@ -1,0 +1,140 @@
+import React from "react";
+
+const PAGE_SIZES = [10, 25, 50] as const;
+
+export interface PaginationBarProps {
+  page: number;
+  totalPages: number;
+  pageSize: number;
+  totalItems: number;
+  onPage: (p: number) => void;
+  onPageSize: (s: number) => void;
+}
+
+export function PaginationBar({
+  page,
+  totalPages,
+  pageSize,
+  totalItems,
+  onPage,
+  onPageSize,
+}: PaginationBarProps) {
+  const from = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, totalItems);
+
+  // Window of up to 5 page numbers centered on current page
+  const windowStart = Math.max(1, Math.min(page - 2, totalPages - 4));
+  const windowEnd = Math.min(windowStart + 4, totalPages);
+  const pages = Array.from(
+    { length: windowEnd - windowStart + 1 },
+    (_, i) => windowStart + i
+  );
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: 12,
+        paddingTop: 14,
+        borderTop: "1px solid var(--border)",
+        marginTop: 2,
+      }}
+    >
+      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+        {totalItems === 0 ? "No results" : `${from}–${to} of ${totalItems}`}
+      </span>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12,
+            color: "var(--text-muted)",
+          }}
+        >
+          Rows
+          <select
+            value={pageSize}
+            onChange={(e) => onPageSize(Number(e.target.value))}
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              color: "var(--text)",
+              padding: "3px 8px",
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            {PAGE_SIZES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div style={{ display: "flex", gap: 3 }}>
+          <PBtn onClick={() => onPage(1)} disabled={page <= 1} label="«" />
+          <PBtn onClick={() => onPage(page - 1)} disabled={page <= 1} label="‹" />
+          {pages.map((p) => (
+            <PBtn
+              key={p}
+              onClick={() => onPage(p)}
+              label={String(p)}
+              active={p === page}
+            />
+          ))}
+          <PBtn onClick={() => onPage(page + 1)} disabled={page >= totalPages} label="›" />
+          <PBtn onClick={() => onPage(totalPages)} disabled={page >= totalPages} label="»" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PBtn({
+  onClick,
+  disabled = false,
+  active = false,
+  label,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-current={active ? "page" : undefined}
+      style={{
+        border: active
+          ? "1px solid rgba(212,168,50,0.5)"
+          : "1px solid var(--border)",
+        background: active ? "rgba(212,168,50,0.15)" : "var(--surface)",
+        color: disabled
+          ? "var(--text-muted)"
+          : active
+            ? "var(--accent)"
+            : "var(--text-secondary)",
+        borderRadius: 6,
+        padding: "4px 10px",
+        fontSize: 13,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.4 : 1,
+        minWidth: 32,
+        transition: "background 0.12s, border-color 0.12s",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
