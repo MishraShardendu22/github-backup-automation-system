@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -101,8 +102,12 @@ func retryCommand(cmdFunc func() *exec.Cmd, operation string, timeout time.Durat
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		cmd := cmdFunc()
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		if cmd.Stdout == nil {
+			cmd.Stdout = os.Stdout
+		}
+		if cmd.Stderr == nil {
+			cmd.Stderr = os.Stderr
+		}
 
 		err := cmd.Start()
 		if err != nil {
@@ -165,4 +170,22 @@ func retryCommand(cmdFunc func() *exec.Cmd, operation string, timeout time.Durat
 	}
 
 	return fmt.Errorf("%s failed after %d attempts: %v", operation, maxRetries, lastErr)
+}
+
+// RunGitCommand executes git with retries and returns trimmed stdout.
+func RunGitCommand(repoDir string, args ...string) (string, error) {
+	var output bytes.Buffer
+	commandArgs := append([]string{"-C", repoDir}, args...)
+	err := retryCommand(func() *exec.Cmd {
+		output.Reset()
+		cmd := exec.Command("git", commandArgs...)
+		cmd.Stdout = &output
+		cmd.Stderr = &output
+		return cmd
+	}, fmt.Sprintf("git %s", strings.Join(args, " ")), cloneTimeout)
+	if err != nil {
+		return "", fmt.Errorf("git %s failed: %v: %s", strings.Join(args, " "), err, strings.TrimSpace(output.String()))
+	}
+
+	return strings.TrimSpace(output.String()), nil
 }

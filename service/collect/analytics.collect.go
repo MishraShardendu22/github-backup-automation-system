@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/MishraShardendu22/github-backup/backend/models"
 	"github.com/MishraShardendu22/github-backup/model"
+	"github.com/MishraShardendu22/github-backup/service/helper"
 	"github.com/MishraShardendu22/github-backup/service/monitor"
+	"github.com/MishraShardendu22/github-backup/util"
+	"go.uber.org/zap"
 )
 
 var defaultRepoPath = "_Repos"
@@ -23,6 +27,15 @@ func GenerateAnalytics(mon *monitor.Monitor) error {
 	local, err := GetLocalAnalytics()
 	if err != nil {
 		return err
+	}
+
+	// get backup repo analytics if possible,
+	// if not log a warning and continue with just local analytics (this can happen if the backup repo is not initialized yet, or if there is an issue with git commands)
+	backupRepo, err := getBackupRepoAnalytics()
+	if err != nil {
+		util.Logger().Warn("backup repo analytics unavailable; saving local metrics only",
+			zap.Error(err),
+		)
 	}
 
 	runID := mon.RunID()
@@ -45,7 +58,85 @@ func GenerateAnalytics(mon *monitor.Monitor) error {
 		LargestArchiveSizeBytes: local.LargestArchiveSizeBytes,
 	}
 
+	if backupRepo != nil {
+		snapshot.HeadCommit = backupRepo.HeadCommit
+		snapshot.HeadCommitMessage = backupRepo.HeadCommitMessage
+		snapshot.HeadCommitAt = &backupRepo.HeadCommitAt
+		snapshot.TotalCommits = backupRepo.TotalCommits
+		snapshot.BranchCount = backupRepo.BranchCount
+		snapshot.TagCount = backupRepo.TagCount
+	}
+
 	return mon.SaveAnalyticsSnapshot(snapshot)
+}
+
+// Add git data to the analytics snapshot for the backup repo, if it is initialized and available
+func getBackupRepoAnalytics() (*model.GitHubRepoAnalytics, error) {
+	if _, err := os.Stat(filepath.Join(defaultRepoPath, ".git")); err != nil {
+		return nil, fmt.Errorf("backup repository not initialized: %w", err)
+	}
+
+	headCommit, err := helper.RunGitCommand(defaultRepoPath, "rev-parse", "HEAD")
+	if err != nil {
+		return nil, err
+	}
+
+	headCommitMessage, err := helper.RunGitCommand(defaultRepoPath, "log", "-1", "--format=%s")
+	if err != nil {
+		return nil, err
+	}
+
+	headCommitAtRaw, err := helper.RunGitCommand(defaultRepoPath, "log", "-1", "--format=%cI")
+	if err != nil {
+		return nil, err
+	}
+
+	headCommitAt, err := time.Parse(time.RFC3339, headCommitAtRaw)
+	if err != nil {
+		return nil, fmt.Errorf("parse backup repo commit time %q: %w", headCommitAtRaw, err)
+	}
+
+	totalCommits, err := runGitCount("rev-list", "--count", "HEAD")
+	if err != nil {
+		return nil, err
+	}
+
+	branchCount, err := runGitCount("for-each-ref", "--format=%(refname:short)", "refs/heads")
+	if err != nil {
+		return nil, err
+	}
+
+	tagCount, err := runGitCount("tag", "--list")
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.GitHubRepoAnalytics{
+		HeadCommit:        headCommit,
+		HeadCommitMessage: headCommitMessage,
+		HeadCommitAt:      headCommitAt,
+		TotalCommits:      totalCommits,
+		BranchCount:       branchCount,
+		TagCount:          tagCount,
+	}, nil
+}
+
+func runGitCount(args ...string) (int, error) {
+	out, err := helper.RunGitCommand(defaultRepoPath, args...)
+	if err != nil {
+		return 0, err
+	}
+
+	if out == "" {
+		return 0, nil
+	}
+
+	count, err := strconv.Atoi(out)
+	if err != nil {
+		return 0, fmt.Errorf("parse git count %q: %w", out, err)
+	}
+
+	return count, nil
 }
 
 // get the local analytics by iterating through the files in the defaultRepoPath directory (_Repos) and collecting stats about the tracked files and archives
@@ -218,7 +309,7 @@ func GetLocalAnalytics() (*model.LocalAnalytics, error) {
 // 		if snapshot == nil {
 // 			continue
 // 		}
-		
+
 // 		if err := mon.SaveAnalyticsSnapshot(snapshot); err != nil {
 // 			return err
 // 		}
@@ -227,7 +318,7 @@ func GetLocalAnalytics() (*model.LocalAnalytics, error) {
 // 	return nil
 // }
 
-// // collect the analytics for One Repo and return the snapshot 
+// // collect the analytics for One Repo and return the snapshot
 // func CollectRepoAnalytics(repoName string, runID int, local *model.LocalAnalytics) (*models.RepoAnalyticsSnapshot, error) {
 // 	if local == nil {
 // 		return nil, fmt.Errorf("local analytics is nil")
@@ -330,7 +421,7 @@ func GetLocalAnalytics() (*model.LocalAnalytics, error) {
 // 	totalRes := <-totalCh
 // 	commitRes := <-commitCh
 // 	branchRes := <-branchCh
-	
+
 // 	// then check for errors (this is pushing the results to the channels)
 // 	if commitRes.err != nil {
 // 		return nil, commitRes.err
