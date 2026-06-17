@@ -67,3 +67,15 @@ clients directory should be in the same directory as main.py file and it should 
 - There is no test framework present yet; adding unit tests and/or a `tests/` package would improve import validation in future.
 - The application still uses `main.py` as the entrypoint; once tests are added, consider moving server startup into a package function for easier imports.
 - The current repository contains a `.venv/` directory; this should be excluded from version control if not already.
+
+## Logging
+
+- The project uses a centralized logger defined in `utils/logging.py`.
+- Import the logger with `from utils.logging import logger` and use `logger.info()`, `logger.debug()`, `logger.warning()`, `logger.error()` as appropriate.
+- All `print()` calls were replaced with structured logging in `agent/openrouter.py`.
+
+Quick test command:
+
+```bash
+.venv/bin/python -c "from utils.logging import logger; logger.info('logger works')"
+```

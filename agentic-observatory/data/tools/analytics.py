@@ -4,7 +4,7 @@ from langchain_core.tools import tool
 
 
 @tool
-async def metrics(
+async def fetch_backup_metrics(
     days: Annotated[int, "Days to analyze"] = 30,
     page: Annotated[int, "Page number"] = 1,
     limit: Annotated[int, "Results per page"] = 50,
@@ -24,7 +24,7 @@ async def metrics(
 
 
 @tool
-async def analytics_history(
+async def list_historical_analytics(
     page: Annotated[int, "Page number"] = 1,
     limit: Annotated[int, "Results per page"] = 50,
 ) -> dict[str, Any]:
@@ -42,7 +42,7 @@ async def analytics_history(
 
 
 @tool
-async def latest_analytics() -> dict[str, Any]:
+async def fetch_latest_analytics_snapshot() -> dict[str, Any]:
     """Fetch the most recent analytics snapshot.
 
     Use when asking for the latest available analytics data.
@@ -57,7 +57,7 @@ async def latest_analytics() -> dict[str, Any]:
 
 
 @tool
-async def analytics_for_run(
+async def fetch_analytics_for_run(
     run_id: Annotated[int, "Backup run identifier"],
 ) -> dict[str, Any]:
     """Retrieve analytics for a specific backup run.

@@ -57,13 +57,3 @@ CREATE TABLE IF NOT EXISTS analytics_snapshots (
 );
 CREATE INDEX IF NOT EXISTS idx_analytics_snapshots_time ON analytics_snapshots(captured_at);
 CREATE INDEX IF NOT EXISTS idx_analytics_snapshots_run ON analytics_snapshots(run_id);
-
-CREATE TABLE IF NOT EXISTS report_history (
-    id SERIAL PRIMARY KEY,
-    report_type TEXT NOT NULL,
-    recipients TEXT NOT NULL,
-    subject TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'sent',
-    error_message TEXT DEFAULT '',
-    sent_at TIMESTAMPTZ DEFAULT NOW()
-);

@@ -3,7 +3,7 @@ from data import client
 from langchain_core.tools import tool
 
 @tool
-async def list_logs(
+async def list_execution_logs(
     page: Annotated[int, "Page number"] = 1,
     limit: Annotated[int, "Results per page"] = 100,
     level: Annotated[str | None, "INFO WARN ERROR"] = None,
