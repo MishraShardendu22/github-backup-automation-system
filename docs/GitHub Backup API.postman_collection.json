@@ -1,0 +1,540 @@
+{
+  "info": {
+    "_postman_id": "0ba71774-19b7-48dc-843b-868573db097d",
+    "name": "GitHub Backup API",
+    "description": "API collection for GitHub Backup Automation System - A Go-based system that clones, archives, and stores GitHub repositories with a Postgres-backed dashboard for visibility.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "33549695"
+  },
+  "item": [
+    {
+      "name": "Backups",
+      "item": [
+        {
+          "name": "List Backup Runs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has pagination', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('pagination');",
+                  "});",
+                  "",
+                  "pm.test('Response has data array', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/backups?page=1&limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "backups"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (1-indexed)"
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Results per page (1-500)"
+                }
+              ]
+            },
+            "description": "Retrieve a paginated list of backup runs in reverse chronological order"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Latest Backup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has backup run structure', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "    pm.expect(jsonData).to.have.property('started_at');",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/backups/latest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "backups",
+                "latest"
+              ]
+            },
+            "description": "Retrieve the most recent backup run"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Backup Run Details",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has run and backup_results', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('run');",
+                  "    pm.expect(jsonData).to.have.property('backup_results');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/backups/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "backups",
+                "1"
+              ]
+            },
+            "description": "Retrieve detailed information for a specific backup run including all repository results"
+          },
+          "response": []
+        }
+      ],
+      "description": "Backup run management endpoints"
+    },
+    {
+      "name": "Dashboard & Metrics",
+      "item": [
+        {
+          "name": "Get Dashboard Statistics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has dashboard stats structure', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('total_runs');",
+                  "    pm.expect(jsonData).to.have.property('total_repos');",
+                  "    pm.expect(jsonData).to.have.property('success_rate');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "stats"
+              ]
+            },
+            "description": "Retrieve aggregated statistics for the dashboard overview (timeout: 15 seconds)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has metrics data', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData).to.have.property('pagination');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/metrics?days=30&page=1&limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "metrics"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30",
+                  "description": "Number of days to look back (default: 30)"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Results per page (default: 50)"
+                }
+              ]
+            },
+            "description": "Retrieve time-series metrics and performance trends"
+          },
+          "response": []
+        }
+      ],
+      "description": "Dashboard statistics and metrics endpoints"
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "List Analytics History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has data and pagination', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData).to.have.property('pagination');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/history?page=1&limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "analytics",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Results per page (1-500, default: 50)"
+                }
+              ]
+            },
+            "description": "Retrieve all repository analytics snapshots in reverse chronological order"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Latest Analytics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has analytics snapshot structure', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('captured_at');",
+                  "    pm.expect(jsonData).to.have.property('head_commit');",
+                  "    pm.expect(jsonData).to.have.property('total_commits');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/latest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "analytics",
+                "latest"
+              ]
+            },
+            "description": "Retrieve the most recent analytics snapshot"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Analytics for Specific Run",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 404', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "analytics",
+                "1"
+              ]
+            },
+            "description": "Retrieve the analytics snapshot for a specific backup run ID"
+          },
+          "response": []
+        }
+      ],
+      "description": "Analytics snapshots endpoints"
+    },
+    {
+      "name": "Repositories",
+      "item": [
+        {
+          "name": "Get Tracked Repositories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has data and pagination', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData).to.have.property('pagination');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/repos?page=1&limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "repos"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Results per page (default: 50)"
+                }
+              ]
+            },
+            "description": "Retrieve the list of currently tracked repositories"
+          },
+          "response": []
+        }
+      ],
+      "description": "Repository tracking endpoints"
+    },
+    {
+      "name": "Logs",
+      "item": [
+        {
+          "name": "Get Execution Logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has data and pagination', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData).to.have.property('pagination');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/logs?page=1&limit=100&level=INFO",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "logs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "description": "Results per page (default: 100)"
+                },
+                {
+                  "key": "level",
+                  "value": "INFO",
+                  "description": "Log level filter: INFO, WARN, ERROR, DEBUG"
+                },
+                {
+                  "key": "run_id",
+                  "value": "1",
+                  "description": "Filter by specific backup run ID",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Retrieve stored execution logs with optional filtering"
+          },
+          "response": []
+        }
+      ],
+      "description": "Execution logs endpoints"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// This script runs before each request"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// This script runs after each request"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "localhost:8080",
+      "description": "Base URL for HTTP API endpoints"
+    },
+    {
+      "key": "base_url_ws",
+      "value": "localhost:8080",
+      "description": "Base URL for WebSocket endpoints"
+    }
+  ]
+}
