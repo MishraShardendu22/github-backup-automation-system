@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,6 +17,8 @@ const (
 	pushTimeout  = 20 * time.Minute
 	cloneTimeout = 20 * time.Minute
 )
+
+var remoteHashPattern = regexp.MustCompile(`^[0-9a-fA-F]{40,64}$`)
 
 /*
 Ensure the repo exist, it does always,
@@ -80,12 +83,33 @@ func GetRemoteHeadHash(repoURL string) (string, error) {
 		return "", fmt.Errorf("git ls-remote failed: %v: %s", err, strings.TrimSpace(string(out)))
 	}
 
-	fields := strings.Fields(string(out))
-	if len(fields) == 0 {
-		return "", fmt.Errorf("git ls-remote returned no hash")
+	hash, parseErr := parseRemoteHeadHash(string(out))
+	if parseErr != nil {
+		return "", parseErr
 	}
 
-	return fields[0], nil
+	return hash, nil
+}
+
+// parase the output of git ls-remote to extract the commit hash
+// earlier it would store the noise isntead of hash it there was ssh multiplexing noise
+// it was storing the first whitespace token
+func parseRemoteHeadHash(output string) (string, error) {
+	// Split the output into lines and iterate over them
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+
+		// match regex and store them
+		candidate := strings.TrimSpace(fields[0])
+		if remoteHashPattern.MatchString(candidate) {
+			return strings.ToLower(candidate), nil
+		}
+	}
+
+	return "", fmt.Errorf("git ls-remote returned no valid hash")
 }
 
 /*
