@@ -1207,13 +1207,6 @@ export default function AIPage() {
 
           {/* Sidebar Footer */}
           <div className="ai-sidebar-footer">
-            <div className="ai-sidebar-footer-row">
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <DatabaseIcon />
-                <span>DB Connected</span>
-              </div>
-              <span>v1.0.0</span>
-            </div>
             <div className="ai-sidebar-footer-row" style={{ marginTop: 8 }}>
               {isLoggedIn ? (
                 <>
