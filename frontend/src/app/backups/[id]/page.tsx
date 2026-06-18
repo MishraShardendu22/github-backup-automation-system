@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { BackupResult, BackupRun } from "@/lib/types";
+import type { BackupResult, BackupRun } from "@/types";
 import { formatBytes, formatDate, formatDuration } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";

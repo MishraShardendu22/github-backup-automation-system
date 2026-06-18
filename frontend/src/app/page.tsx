@@ -1,27 +1,36 @@
 import Link from "next/link";
-import type { BackupRun, DashboardStats } from "@/lib/types";
+import type { BackupRun } from "@/types";
 import { formatBytes, formatDate, formatDuration } from "@/lib/utils";
+import { StatusBadge, MetricCard } from "@/components/ui";
+import { safeFetch } from "@/lib/api";
+
+interface DashboardStats {
+  total_runs: number;
+  total_repos: number;
+  total_successful: number;
+  success_rate: number;
+  last_run_status: string;
+  last_run_at: string | null;
+  total_failed: number;
+  avg_duration_ms: number;
+  total_skipped: number;
+  distinct_repos: number;
+  total_logs: number;
+  total_size_bytes: number;
+  largest_archive_bytes: number;
+  largest_repository: string;
+  latest_analytics: any | null;
+}
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 async function fetchStats(): Promise<DashboardStats | null> {
-  try {
-    const res = await fetch(`${API}/api/dashboard/stats`, { cache: "no-store" });
-    return res.ok ? res.json() : null;
-  } catch {
-    return null;
-  }
+  return safeFetch<DashboardStats>("/api/dashboard/stats");
 }
 
 async function fetchLatestRun(): Promise<BackupRun | null> {
-  try {
-    const res = await fetch(`${API}/api/backups/latest`, { cache: "no-store" });
-    if (!res.ok) return null;
-    const data: { run: BackupRun | null } = await res.json();
-    return data.run;
-  } catch {
-    return null;
-  }
+  const data = await safeFetch<{ run: BackupRun | null }>("/api/backups/latest");
+  return data?.run || null;
 }
 
 export default async function DashboardPage() {
@@ -53,21 +62,7 @@ export default async function DashboardPage() {
           <div className="stat-card stat-card--compact">
             <div className="stat-label">Latest run</div>
             <div style={{ marginTop: 6 }}>
-              {latestRun ? (
-                <span
-                  className={`badge ${
-                    latestRun.status === "completed"
-                      ? "badge-success"
-                      : latestRun.status === "running"
-                        ? "badge-running"
-                        : "badge-error"
-                  }`}
-                >
-                  {latestRun.status}
-                </span>
-              ) : (
-                <span className="text-muted" style={{ fontSize: 13 }}>No run yet</span>
-              )}
+              {latestRun ? <StatusBadge status={latestRun.status} /> : <span className="text-muted" style={{ fontSize: 13 }}>No run yet</span>}
             </div>
             <div className="text-xs text-muted" style={{ marginTop: 6 }}>
               {latestRun ? formatDate(latestRun.started_at) : "Start the backup worker"}

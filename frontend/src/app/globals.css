@@ -31,13 +31,13 @@
   --warning: #F5D97A;
   --font-serif: var(--font-instrument), "Georgia", serif;
   --font-sans: var(--font-inter), "Inter", system-ui, -apple-system, sans-serif;
-  --page-max: 1180px;
-  --page-gutter: clamp(16px, 4vw, 48px);
+  --page-max: 1440px;
+  --page-gutter: clamp(20px, 3vw, 32px);
   --space-1: 4px;
   --space-2: 8px;
-  --space-3: 16px;
-  --space-4: 24px;
-  --space-5: 32px;
+  --space-3: 12px;
+  --space-4: 20px;
+  --space-5: 28px;
   --radius-lg: 8px;
   --radius-md: 8px;
   --shadow-sm: 0 10px 24px rgba(15, 23, 42, 0.06);
@@ -106,7 +106,7 @@ textarea {
   width: 100%;
   max-width: var(--page-max);
   margin: 0 auto;
-  padding: clamp(20px, 4vw, 40px) var(--page-gutter) 64px;
+  padding: clamp(16px, 3vw, 28px) var(--page-gutter) 48px;
   flex: 1 1 auto;
 }
 
@@ -114,7 +114,7 @@ textarea {
   position: sticky;
   top: 0;
   z-index: 12;
-  background: rgba(20, 18, 16, 0.92);
+  background: rgba(20, 18, 16, 0.95);
   border-bottom: 1px solid var(--border-light);
   backdrop-filter: blur(12px);
 }
@@ -123,7 +123,7 @@ textarea {
   width: 100%;
   max-width: var(--page-max);
   margin: 0 auto;
-  padding: 14px var(--page-gutter);
+  padding: 10px var(--page-gutter);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -195,7 +195,7 @@ textarea {
 }
 
 .nav-link {
-  padding: 7px 18px;
+  padding: 6px 16px;
   border-radius: 20px;
   font-size: 13px;
   font-weight: 500;

@@ -1,3 +1,7 @@
+import { STATUS_COLORS, STATUS_BACKGROUNDS } from "@/constants/status";
+
+// ─── Formatting utilities ────────────────────────────────────────────────────
+
 export function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   const seconds = ms / 1000;
@@ -17,13 +21,22 @@ export function formatBytes(bytes: number): string {
 }
 
 export function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+export function formatTime(d: Date): string {
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 export function timeAgo(dateStr: string): string {
@@ -42,35 +55,23 @@ export function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
+// ─── Status styling utilities ────────────────────────────────────────────────
+
 export function statusColor(status: string): string {
-  switch (status) {
-    case "completed":
-      return "text-emerald-400";
-    case "running":
-      return "text-blue-400";
-    case "failed":
-      return "text-red-400";
-    case "skipped":
-      return "text-zinc-400";
-    default:
-      return "text-zinc-300";
-  }
+  return STATUS_COLORS[status as keyof typeof STATUS_COLORS] || STATUS_COLORS.default;
 }
 
 export function statusBg(status: string): string {
-  switch (status) {
-    case "completed":
-      return "bg-emerald-500/10 border-emerald-500/20";
-    case "running":
-      return "bg-blue-500/10 border-blue-500/20";
-    case "failed":
-      return "bg-red-500/10 border-red-500/20";
-    case "skipped":
-      return "bg-zinc-500/10 border-zinc-500/20";
-    default:
-      return "bg-zinc-500/10 border-zinc-500/20";
-  }
+  return STATUS_BACKGROUNDS[status as keyof typeof STATUS_BACKGROUNDS] || STATUS_BACKGROUNDS.default;
 }
+
+// ─── ID generation ───────────────────────────────────────────────────────────
+
+export function uid(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+// ─── Class name utilities ────────────────────────────────────────────────────
 
 export function cn(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(" ");

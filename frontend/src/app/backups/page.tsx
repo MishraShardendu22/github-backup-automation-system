@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getBackupRuns } from "@/lib/api";
-import type { BackupRun } from "@/lib/types";
+import { backupService } from "@/services/backup.service";
+import type { BackupRun } from "@/types";
 import { formatDate, formatDuration } from "@/lib/utils";
 import { PaginationBar } from "@/components/analytics/pagination-bar";
 
@@ -20,7 +20,7 @@ export default function BackupsPage() {
   useEffect(() => {
     setLoading(true);
     setError(false);
-    getBackupRuns(page, pageSize)
+    backupService.getRuns(page, pageSize)
       .then((res) => {
         setRuns(res.data);
         setTotalItems(res.pagination.total_items);

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getBackupRuns } from "@/lib/api";
-import type { BackupRun } from "@/lib/types";
+import { backupService } from "@/services/backup.service";
+import type { BackupRun } from "@/types";
 import { formatDate, formatDuration } from "@/lib/utils";
 import { PaginationBar } from "@/components/analytics/pagination-bar";
 import { AnalyticsSubNav } from "@/components/analytics/analytics-sub-nav";
@@ -20,7 +20,7 @@ export default function RunHistoryPage() {
   useEffect(() => {
     setLoading(true);
     setError(false);
-    getBackupRuns(page, pageSize)
+    backupService.getRuns(page, pageSize)
       .then((res) => {
         setRuns(res.data);
         setTotalItems(res.pagination.total_items);

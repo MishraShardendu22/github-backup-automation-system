@@ -13,8 +13,8 @@ import {
   YAxis,
 } from "recharts";
 import Link from "next/link";
-import { getMetrics } from "@/lib/api";
-import type { MetricsData } from "@/lib/types";
+import { safeFetch } from "@/lib/api";
+import type { MetricsData } from "@/types";
 import { formatBytes, formatDuration } from "@/lib/utils";
 import { AnalyticsSubNav } from "@/components/analytics/analytics-sub-nav";
 
@@ -39,8 +39,8 @@ export default function AnalyticsOverviewPage() {
   useEffect(() => {
     setLoading(true);
     setError(false);
-    getMetrics(days)
-      .then(setMetrics)
+    safeFetch<MetricsData>(`/api/metrics?days=${days}`)
+      .then((data) => { if (data) setMetrics(data); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [days]);

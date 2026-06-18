@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getAnalyticsHistory } from "@/lib/api";
-import type { RepoAnalyticsSnapshot } from "@/lib/types";
+import { analyticsService } from "@/services/analytics.service";
+import type { RepoAnalyticsSnapshot } from "@/types";
 import { formatBytes, formatDate } from "@/lib/utils";
 import { PaginationBar } from "@/components/analytics/pagination-bar";
 import { AnalyticsSubNav } from "@/components/analytics/analytics-sub-nav";
@@ -20,7 +20,7 @@ export default function SnapshotsPage() {
   useEffect(() => {
     setLoading(true);
     setError(false);
-    getAnalyticsHistory(page, pageSize)
+    analyticsService.getHistory(page, pageSize)
       .then((res) => {
         setSnapshots(res.data);
         setTotalItems(res.pagination.total_items);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { WsMessage } from "@/lib/types";
+import type { WsMessage } from "@/types";
 
 function buildLiveSocketUrl() {
   const configuredBase = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
