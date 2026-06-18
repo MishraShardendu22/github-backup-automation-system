@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     SMTP_USERNAME: str | None = None
     SMTP_PASSWORD: str | None = None
     SMTP_FROM: str | None = None
+    SMTP_TO: str | None = None
 
     JWT_SECRET: str | None = None
     CHAT_PASSWORD: str | None = None

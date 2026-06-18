@@ -1,4 +1,5 @@
 from .log import list_execution_logs
+from .email import send_report_email
 from .analytics import (
     fetch_backup_metrics,
     fetch_analytics_for_run,
@@ -19,4 +20,5 @@ __all__ = [
     "fetch_backup_run_details",
     "list_execution_logs",
     "list_tracked_repositories",
+    "send_report_email",
 ]

@@ -1,3 +1,4 @@
+import json
 from data import client
 from pathlib import Path
 from data.db import init_db
@@ -17,7 +18,7 @@ from data.persistence import persistence_store
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-from agent.state import InvestigationRecord, ReportRequest, ReportSendRequest
+from agent.state import InvestigationRecord, ReportRequest, ReportSendRequest, ToolExecution
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from utils.auth import authenticate_user, create_access_token, get_current_user, TokenResponse
 
@@ -45,6 +46,22 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     question: str
+    session_id: str | None = None
+
+
+class CreateSessionRequest(BaseModel):
+    id: str | None = None
+    session_name: str | None = None
+    metadata: dict | None = None
+
+
+class RenameSessionRequest(BaseModel):
+    session_name: str
+
+
+class ConfirmRequest(BaseModel):
+    confirm_id: str
+    approve: bool
 
 
 @app.get("/health")
@@ -74,19 +91,87 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     return TokenResponse(access_token=access_token)
 
 
+@app.post("/sessions")
+async def create_session(request: CreateSessionRequest, current_user: str = Depends(get_current_user)):
+    session = await persistence_store.create_session(
+        session_id=request.id,
+        session_name=request.session_name,
+        metadata=request.metadata,
+    )
+    return success_response(data=session, message="Session created successfully")
+
+
+@app.get("/sessions")
+async def list_sessions(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    sessions = await persistence_store.list_sessions(limit=limit, offset=offset)
+    return success_response(data=sessions, message="Sessions list retrieved")
+
+
+@app.get("/sessions/{session_id}")
+async def get_session(session_id: str):
+    session = await persistence_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    return success_response(data=session, message="Session retrieved")
+
+
+@app.patch("/sessions/{session_id}")
+async def rename_session(
+    session_id: str,
+    request: RenameSessionRequest,
+    current_user: str = Depends(get_current_user),
+):
+    session = await persistence_store.rename_session(session_id, request.session_name)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    return success_response(data=session, message="Session renamed successfully")
+
+
+@app.delete("/sessions/{session_id}")
+async def delete_session(session_id: str, current_user: str = Depends(get_current_user)):
+    success = await persistence_store.delete_session(session_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    return success_response(data={"success": True}, message="Session deleted successfully")
+
+
+@app.get("/sessions/{session_id}/messages")
+async def get_session_messages(session_id: str):
+    messages = await persistence_store.get_session_messages(session_id)
+    return success_response(data=messages, message="Session messages retrieved")
+
+
+@app.get("/stats")
+async def get_ai_stats():
+    stats = await persistence_store.get_ai_dashboard_stats()
+    return success_response(data=stats, message="AI Observatory stats retrieved")
+
+
 @app.get("/chat")
 async def chat_get(
     question: str = Query(..., description="Question for the agent"),
+    session_id: str | None = Query(None, description="Optional chat session ID"),
     current_user: str = Depends(get_current_user),
 ):
-    agent_response = await invoke_agent(question)
+    if session_id:
+        await persistence_store.create_session(session_id=session_id)
+        
+    agent_response = await invoke_agent(question, session_id=session_id)
+    
+    user_msg = {"role": "user", "content": question, "created_at": datetime.utcnow().isoformat()}
+    assistant_msg = {"role": "assistant", "content": agent_response.answer, "created_at": datetime.utcnow().isoformat()}
+    
     investigation = InvestigationRecord(
         request_id=agent_response.request_id,
+        session_id=session_id,
         question=agent_response.question,
         answer=agent_response.answer,
         tool_calls=agent_response.tool_calls,
         tool_results=agent_response.tool_results,
-        messages=[],
+        messages=[user_msg, assistant_msg],
         status=agent_response.status,
     )
     await persistence_store.save_investigation(investigation)
@@ -98,14 +183,22 @@ async def chat_get(
 
 @app.post("/chat")
 async def chat(request: ChatRequest, current_user: str = Depends(get_current_user)):
-    agent_response = await invoke_agent(request.question)
+    if request.session_id:
+        await persistence_store.create_session(session_id=request.session_id)
+        
+    agent_response = await invoke_agent(request.question, session_id=request.session_id)
+    
+    user_msg = {"role": "user", "content": request.question, "created_at": datetime.utcnow().isoformat()}
+    assistant_msg = {"role": "assistant", "content": agent_response.answer, "created_at": datetime.utcnow().isoformat()}
+    
     investigation = InvestigationRecord(
         request_id=agent_response.request_id,
-        question=agent_response.question,
+        session_id=request.session_id,
+        question=request.question,
         answer=agent_response.answer,
         tool_calls=agent_response.tool_calls,
         tool_results=agent_response.tool_results,
-        messages=[],
+        messages=[user_msg, assistant_msg],
         status=agent_response.status,
     )
     await persistence_store.save_investigation(investigation)
@@ -117,14 +210,75 @@ async def chat(request: ChatRequest, current_user: str = Depends(get_current_use
 
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest, current_user: str = Depends(get_current_user)):
+    if request.session_id:
+        await persistence_store.create_session(session_id=request.session_id)
+
     async def event_generator():
-        async for token in stream_agent(request.question):
-            sse_token = token.replace("\n", "\ndata: ")
+        answer_parts = []
+        tool_calls = []
+        tool_results = []
+        request_id = None
+
+        async for event_str in stream_agent(request.question, session_id=request.session_id):
+            sse_token = event_str.replace("\n", "\ndata: ")
             yield f"data: {sse_token}\n\n"
+            try:
+                event = json.loads(event_str)
+                if event["type"] == "info":
+                    request_id = event["request_id"]
+                elif event["type"] == "token":
+                    answer_parts.append(event["text"])
+                elif event["type"] == "tool_end":
+                    tool_calls.append(ToolExecution(
+                        name=event["name"],
+                        success=event["success"],
+                        duration_ms=event["duration_ms"],
+                        args=event.get("args"),
+                        error=event.get("error"),
+                        result=event.get("result"),
+                    ))
+                    tool_results.append(event.get("result") or {})
+            except Exception as e:
+                logger.error(f"Error parsing stream event: {e}")
+
+        # Save investigation record once stream finishes
+        if request_id:
+            answer = "".join(answer_parts)
+            user_msg = {"role": "user", "content": request.question, "created_at": datetime.utcnow().isoformat()}
+            assistant_msg = {"role": "assistant", "content": answer, "created_at": datetime.utcnow().isoformat()}
+            investigation = InvestigationRecord(
+                request_id=request_id,
+                session_id=request.session_id,
+                question=request.question,
+                answer=answer,
+                tool_calls=tool_calls,
+                tool_results=tool_results,
+                messages=[user_msg, assistant_msg],
+                status="completed",
+            )
+            await persistence_store.save_investigation(investigation)
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
+    )
+
+
+@app.post("/chat/confirm")
+async def confirm_action(request: ConfirmRequest, current_user: str = Depends(get_current_user)):
+    from agent.openrouter import active_confirmations, active_responses
+    confirm_id = request.confirm_id
+    if confirm_id not in active_confirmations:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Confirmation ID not found or already processed."
+        )
+    
+    active_responses[confirm_id] = request.approve
+    active_confirmations[confirm_id].set()
+    return success_response(
+        data={"confirm_id": confirm_id, "approved": request.approve},
+        message="Confirmation recorded successfully"
     )
 
 

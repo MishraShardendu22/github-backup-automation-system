@@ -1,6 +1,12 @@
 from __future__ import annotations
 
 import time
+import json
+import asyncio
+
+active_confirmations: dict[str, asyncio.Event] = {}
+active_responses: dict[str, bool] = {}
+
 from data.tools import (
     list_backup_runs,
     list_execution_logs,
@@ -12,11 +18,13 @@ from data.tools import (
     list_tracked_repositories,
     fetch_dashboard_statistics,
     fetch_latest_analytics_snapshot,
+    send_report_email,
 )
 from langchain_core.messages import (
     ToolMessage,
     HumanMessage,
     SystemMessage,
+    AIMessage,
 )
 from config import settings
 from utils.logging import logger
@@ -36,6 +44,7 @@ TOOLS = [
     list_tracked_repositories,
     fetch_dashboard_statistics,
     fetch_latest_analytics_snapshot,
+    send_report_email,
 ]
 
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
@@ -64,112 +73,117 @@ def get_bound_llm():
 
 # Main function to invoke the agent with a user question,
 # handle tool calls, and return the final answer
-async def invoke_agent(question: str, request_id: str | None = None) -> AgentResponse:
+async def invoke_agent(
+    question: str,
+    session_id: str | None = None,
+    request_id: str | None = None,
+) -> AgentResponse:
     request_id = request_id or create_request_id()
     start = time.perf_counter()
     llm = get_bound_llm()
 
-    # initialize the conversation with a system prompt and the user's question
+    # Load history messages if session_id is provided
+    history_messages = []
+    if session_id:
+        try:
+            from data.persistence import persistence_store
+            db_messages = await persistence_store.get_session_messages(session_id)
+            for msg in db_messages:
+                role = msg.get("role")
+                content = msg.get("content")
+                if role == "user":
+                    history_messages.append(HumanMessage(content=content))
+                elif role == "assistant":
+                    history_messages.append(AIMessage(content=content))
+        except Exception as e:
+            logger.error(f"[session_id={session_id}] Failed to load history messages: {e}")
+
+    # initialize the conversation with a system prompt, history, and the user's question
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=question),
     ]
+    messages.extend(history_messages)
+    messages.append(HumanMessage(content=question))
 
     logger.info(f"[request_id={request_id}] Agent question: {question}")
 
-    # First LLM Call
-    # 1.) Invoke the LLM to get the initial response, which may include tool calls
-    response = await llm.ainvoke(messages)
-    logger.info(f"[request_id={request_id}] === TOOL CALLS ===")
-    logger.info(f"[request_id={request_id}] Tool calls: {response.tool_calls}")
-
-    # If there are no tool calls, we can return the response directly
-    # This is the case when the LLM can answer the question without needing any external data
-    # This will be useful for chats when we have alred made tool calls and have data in the context, so the LLM can answer without needing to call any tools
-    if not response.tool_calls:
-        duration = time.perf_counter() - start
-        logger.info(f"[request_id={request_id}] Agent completed in {duration:.2f}s")
-
-        return AgentResponse(
-            request_id=request_id,
-            question=question,
-            answer=response.content or "",
-            tool_calls=[],
-            tool_results=[],
-        )
-
-    # 2. Execute Tool Calls, store the tool results, and feed them back to the LLM for a final answer
-    # If there are tool calls, we need to execute them and then feed the results back to the LLM
-    # store the tools call results so we can use them in the final response 
-    messages.append(response)
+    # Loop to allow multi-turn tool calling (up to 5 iterations)
     executed_tools: list[ToolExecution] = []
-
-    for tool_call in response.tool_calls:
-        tool_args = tool_call["args"]
-        tool_name = tool_call["name"]
-
-        logger.debug(f"[request_id={request_id}] Tool args: {tool_args}")
-        logger.info(f"[request_id={request_id}] Executing tool: {tool_name}")
-
-        tool_start = time.perf_counter()
-        try:
-            tool = TOOLS_BY_NAME[tool_name]
-            tool_result = await tool.ainvoke(tool_args)
-            tool_duration_ms = (time.perf_counter() - tool_start) * 1000
-            executed_tool = ToolExecution(
-                name=tool_name,
-                args=tool_args,
-                success=True,
-                duration_ms=tool_duration_ms,
-                result=tool_result,
+    
+    for iteration in range(5):
+        logger.info(f"[request_id={request_id}] LLM Turn {iteration + 1}...")
+        response = await llm.ainvoke(messages)
+        messages.append(response)
+        
+        if not response.tool_calls:
+            # Final answer received
+            duration = time.perf_counter() - start
+            logger.info(f"[request_id={request_id}] Agent completed in {duration:.2f}s after {iteration + 1} turns")
+            return AgentResponse(
+                request_id=request_id,
+                question=question,
+                answer=response.content or "",
+                tool_calls=executed_tools,
+                tool_results=[tool.dict() for tool in executed_tools],
             )
-
-            # If tools execution is successful, we store the result and feed it back to the LLM for a final answer
-            executed_tools.append(executed_tool)
-            messages.append(
-                ToolMessage(
-                    content=safe_serialize_payload(tool_result),
-                    tool_call_id=tool_call["id"],
+            
+        logger.info(f"[request_id={request_id}] Turn {iteration + 1} Tool calls: {response.tool_calls}")
+        for tool_call in response.tool_calls:
+            tool_args = tool_call["args"]
+            tool_name = tool_call["name"]
+            
+            logger.debug(f"[request_id={request_id}] Tool args: {tool_args}")
+            logger.info(f"[request_id={request_id}] Executing tool: {tool_name}")
+            
+            tool_start = time.perf_counter()
+            try:
+                tool = TOOLS_BY_NAME[tool_name]
+                tool_result = await tool.ainvoke(tool_args)
+                tool_duration_ms = (time.perf_counter() - tool_start) * 1000
+                executed_tool = ToolExecution(
+                    name=tool_name,
+                    args=tool_args,
+                    success=True,
+                    duration_ms=tool_duration_ms,
+                    result=tool_result,
                 )
-            )
-            logger.info(
-                f"[request_id={request_id}] Tool success: {tool_name} ({tool_duration_ms:.2f}ms)"
-            )
-        except Exception as exc:
-            tool_duration_ms = (time.perf_counter() - tool_start) * 1000
-            executed_tool = ToolExecution(
-                name=tool_name,
-                args=tool_args,
-                success=False,
-                duration_ms=tool_duration_ms,
-                error=str(exc),
-            )
-
-            # If tools execution fails, we store the error and feed it back to the LLM for a final answer
-            executed_tools.append(executed_tool)
-            messages.append(
-                ToolMessage(
-                    content=safe_serialize_payload(f"Tool execution failed: {str(exc)}"),
-                    tool_call_id=tool_call["id"],
+                executed_tools.append(executed_tool)
+                messages.append(
+                    ToolMessage(
+                        content=safe_serialize_payload(tool_result),
+                        tool_call_id=tool_call["id"],
+                    )
                 )
-            )
-            logger.error(
-                f"[request_id={request_id}] Tool failed: {tool_name} ({tool_duration_ms:.2f}ms) error={str(exc)}"
-            )
-
-    # 3. Final LLM Call
-    # After executing all the tool calls, we make a final call to the LLM to get
-    final_response = await llm.ainvoke(messages)
-
-    # Log the final response and return it along with the executed tool calls and their results
+                logger.info(
+                    f"[request_id={request_id}] Tool success: {tool_name} ({tool_duration_ms:.2f}ms)"
+                )
+            except Exception as exc:
+                tool_duration_ms = (time.perf_counter() - tool_start) * 1000
+                executed_tool = ToolExecution(
+                    name=tool_name,
+                    args=tool_args,
+                    success=False,
+                    duration_ms=tool_duration_ms,
+                    error=str(exc),
+                )
+                executed_tools.append(executed_tool)
+                messages.append(
+                    ToolMessage(
+                        content=safe_serialize_payload(f"Tool execution failed: {str(exc)}"),
+                        tool_call_id=tool_call["id"],
+                    )
+                )
+                logger.error(
+                    f"[request_id={request_id}] Tool failed: {tool_name} ({tool_duration_ms:.2f}ms) error={str(exc)}"
+                )
+                
+    # Fallback if iterations exceed 5
     duration = time.perf_counter() - start
-    logger.info(f"[request_id={request_id}] Agent completed in {duration:.2f}s")
-
-    # Return the final response along with the executed tool calls and their results
+    logger.warn(f"[request_id={request_id}] Agent hit loop limit (5) and forced completion in {duration:.2f}s")
     return AgentResponse(
         request_id=request_id,
         question=question,
-        answer=final_response.content or "",
+        answer=messages[-1].content or "Reasoning loop execution limit reached.",
         tool_calls=executed_tools,
         tool_results=[tool.dict() for tool in executed_tools],
     )
@@ -230,8 +244,13 @@ async def _stream_final_answer(llm, messages, request_id: str, start: float) -> 
     duration = time.perf_counter() - start
     logger.info(f"[request_id={request_id}] Streamed final answer in {duration:.2f}s")
 
+
 # same as invoke_agent but it streams the final answer back to the client as it is generated by the LLM, instead of waiting for the final answer to be generated and then returning it
-async def stream_agent(question: str, request_id: str | None = None) -> AsyncIterator[str]:
+async def stream_agent(
+    question: str,
+    session_id: str | None = None,
+    request_id: str | None = None,
+) -> AsyncIterator[str]:
     # if request_id is not provided, create a new one
     request_id = request_id or create_request_id()
 
@@ -241,85 +260,174 @@ async def stream_agent(question: str, request_id: str | None = None) -> AsyncIte
     # get the LLM instance with tools bound to it
     llm = get_bound_llm()
 
-    # initialize the conversation with a system prompt and the user's question
+    # Yield info event first
+    yield json.dumps({"type": "info", "request_id": request_id, "session_id": session_id})
+
+    # Load history messages if session_id is provided
+    history_messages = []
+    if session_id:
+        try:
+            from data.persistence import persistence_store
+            db_messages = await persistence_store.get_session_messages(session_id)
+            for msg in db_messages:
+                role = msg.get("role")
+                content = msg.get("content")
+                if role == "user":
+                    history_messages.append(HumanMessage(content=content))
+                elif role == "assistant":
+                    history_messages.append(AIMessage(content=content))
+        except Exception as e:
+            logger.error(f"[session_id={session_id}] Failed to load history messages: {e}")
+
+    # initialize the conversation with a system prompt, history, and the user's question
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=question),
     ]
+    messages.extend(history_messages)
+    messages.append(HumanMessage(content=question))
 
     logger.info(f"[request_id={request_id}] Agent question: {question}")
 
-    # get the tool calls from the initial response
-    response = await llm.ainvoke(messages)
-    logger.info(f"[request_id={request_id}] === TOOL CALLS ===")
-    logger.info(f"[request_id={request_id}] Tool calls: {response.tool_calls}")
-
-    # no tool calls means the LLM can answer the question without needing any external data
-    if not response.tool_calls:
-        if response.content:
-            yield response.content
-        return
-
-    # If there are tool calls, we need to execute them and then feed the results back to the LLM for a final answer
-    messages.append(response)
     executed_tools: list[ToolExecution] = []
-
-    # execute the tool calls and feed the results back to the LLM for a final answer
-    for tool_call in response.tool_calls:
-        tool_args = tool_call["args"]
-        tool_name = tool_call["name"]
-
-        logger.debug(f"[request_id={request_id}] Tool args: {tool_args}")
-        logger.info(f"[request_id={request_id}] Executing tool: {tool_name}")
-
-        tool_start = time.perf_counter()
-
-        # execute the tool call and handle any exceptions that may occur during execution
-        try:
-            tool = TOOLS_BY_NAME[tool_name]
-            tool_result = await tool.ainvoke(tool_args)
-            tool_duration_ms = (time.perf_counter() - tool_start) * 1000
-            executed_tool = ToolExecution(
-                name=tool_name,
-                args=tool_args,
-                success=True,
-                duration_ms=tool_duration_ms,
-                result=tool_result,
-            )
-            executed_tools.append(executed_tool)
-
-            messages.append(
-                ToolMessage(
-                    content=safe_serialize_payload(tool_result),
-                    tool_call_id=tool_call["id"],
-                )
-            )
-            logger.info(
-                f"[request_id={request_id}] Tool success: {tool_name} ({tool_duration_ms:.2f}ms)"
-            )
+    
+    for iteration in range(5):
+        # Yield a status update: LLM reasoning
+        yield json.dumps({"type": "agent_reasoning", "iteration": iteration, "request_id": request_id})
         
-        # in case of an exception during tool execution, we log the error and feed it back to the LLM for a final answer
-        except Exception as exc:
-            tool_duration_ms = (time.perf_counter() - tool_start) * 1000
-            executed_tool = ToolExecution(
-                name=tool_name,
-                args=tool_args,
-                success=False,
-                duration_ms=tool_duration_ms,
-                error=str(exc),
-            )
-            executed_tools.append(executed_tool)
+        logger.info(f"[request_id={request_id}] LLM Turn {iteration + 1}...")
+        response = await llm.ainvoke(messages)
+        messages.append(response)
+        
+        if not response.tool_calls:
+            # If there are no tool calls, this is the final answer!
+            # We pop the response we just got from the list so that astream can generate it.
+            messages.pop()
+            
+            # Yield token events
+            answer_parts = []
+            async for token in _stream_final_answer(llm, messages, request_id, start):
+                answer_parts.append(token)
+                yield json.dumps({"type": "token", "text": token})
+                
+            answer = "".join(answer_parts)
+            yield json.dumps({"type": "done", "answer": answer, "request_id": request_id})
+            return
+            
+        # Execute tool calls
+        logger.info(f"[request_id={request_id}] Turn {iteration + 1} Tool calls: {response.tool_calls}")
+        for tool_call in response.tool_calls:
+            tool_args = tool_call["args"]
+            tool_name = tool_call["name"]
+            
+            # HUMAN IN THE LOOP MIDDLEWARE FOR SENSITIVE EMAIL ACTIONS
+            if tool_name == "send_report_email":
+                import uuid
+                confirm_id = str(uuid.uuid4())
+                
+                # Yield confirmation required event
+                yield json.dumps({
+                    "type": "confirm_required",
+                    "confirm_id": confirm_id,
+                    "name": tool_name,
+                    "args": tool_args
+                })
+                
+                confirm_event = asyncio.Event()
+                active_confirmations[confirm_id] = confirm_event
+                
+                try:
+                    # Wait up to 120 seconds for human validation
+                    await asyncio.wait_for(confirm_event.wait(), timeout=120.0)
+                    approved = active_responses.get(confirm_id, False)
+                except asyncio.TimeoutError:
+                    approved = False
+                finally:
+                    active_confirmations.pop(confirm_id, None)
+                    active_responses.pop(confirm_id, None)
+                    
+                if not approved:
+                    # Log rejection and feed it to LLM context
+                    yield json.dumps({
+                        "type": "tool_end",
+                        "name": tool_name,
+                        "success": False,
+                        "error": "Email transmission rejected by user."
+                    })
+                    messages.append(
+                        ToolMessage(
+                            content="Tool execution rejected by user. The email report was NOT sent.",
+                            tool_call_id=tool_call["id"],
+                        )
+                    )
+                    continue
 
-            messages.append(
-                ToolMessage(
-                    content=f"Tool execution failed: {str(exc)}",
-                    tool_call_id=tool_call["id"],
+            # Yield tool start event
+            yield json.dumps({"type": "tool_start", "name": tool_name, "args": tool_args})
+            
+            logger.debug(f"[request_id={request_id}] Tool args: {tool_args}")
+            logger.info(f"[request_id={request_id}] Executing tool: {tool_name}")
+            
+            tool_start = time.perf_counter()
+            try:
+                tool = TOOLS_BY_NAME[tool_name]
+                tool_result = await tool.ainvoke(tool_args)
+                tool_duration_ms = (time.perf_counter() - tool_start) * 1000
+                executed_tool = ToolExecution(
+                    name=tool_name,
+                    args=tool_args,
+                    success=True,
+                    duration_ms=tool_duration_ms,
+                    result=tool_result,
                 )
-            )
-            logger.error(
-                f"[request_id={request_id}] Tool failed: {tool_name} ({tool_duration_ms:.2f}ms) error={str(exc)}"
-            )
-
-    # stream the final answer back to the client as it is generated by the LLM
-    async for token in _stream_final_answer(llm, messages, request_id, start):
-        yield token
+                executed_tools.append(executed_tool)
+                
+                messages.append(
+                    ToolMessage(
+                        content=safe_serialize_payload(tool_result),
+                        tool_call_id=tool_call["id"],
+                    )
+                )
+                
+                # Yield tool success event
+                yield json.dumps({
+                    "type": "tool_end",
+                    "name": tool_name,
+                    "success": True,
+                    "duration_ms": tool_duration_ms,
+                    "result": tool_result,
+                })
+                logger.info(
+                    f"[request_id={request_id}] Tool success: {tool_name} ({tool_duration_ms:.2f}ms)"
+                )
+            except Exception as exc:
+                tool_duration_ms = (time.perf_counter() - tool_start) * 1000
+                executed_tool = ToolExecution(
+                    name=tool_name,
+                    args=tool_args,
+                    success=False,
+                    duration_ms=tool_duration_ms,
+                    error=str(exc),
+                )
+                executed_tools.append(executed_tool)
+                
+                messages.append(
+                    ToolMessage(
+                        content=f"Tool execution failed: {str(exc)}",
+                        tool_call_id=tool_call["id"],
+                    )
+                )
+                
+                # Yield tool error event
+                yield json.dumps({
+                    "type": "tool_end",
+                    "name": tool_name,
+                    "success": False,
+                    "duration_ms": tool_duration_ms,
+                    "error": str(exc),
+                })
+                logger.error(
+                    f"[request_id={request_id}] Tool failed: {tool_name} ({tool_duration_ms:.2f}ms) error={str(exc)}"
+                )
+                
+    # Loop limit reached fallback
+    yield json.dumps({"type": "done", "answer": "Reasoning loop execution limit reached.", "request_id": request_id})

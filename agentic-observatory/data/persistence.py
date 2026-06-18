@@ -1,22 +1,38 @@
 from __future__ import annotations
 
+import uuid
 from data.db import (
     ai_tool_calls,
     async_session,
     investigations,
     ai_chat_messages,
     generated_reports,
+    ai_chat_sessions,
 )
 from typing import Any
+from config import settings
 from datetime import datetime
 from utils.logging import logger
 from sqlalchemy.exc import SQLAlchemyError
 from agent.state import InvestigationRecord
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import insert, select, update
+from sqlalchemy import insert, select, update, delete, func, text
 
 class PersistenceError(RuntimeError):
     pass
+
+def parse_dt(val: Any) -> datetime:
+    if not val:
+        return datetime.utcnow()
+    if isinstance(val, str):
+        val = val.replace("Z", "+00:00")
+        try:
+            return datetime.fromisoformat(val)
+        except Exception:
+            return datetime.utcnow()
+    if isinstance(val, datetime):
+        return val
+    return datetime.utcnow()
 
 # This class is responsible for all interactions with the database related to investigations and reports. 
 # basically filling the database tables with the data we want to store and also fetching that data when needed.
@@ -48,18 +64,22 @@ class InvestigationStore:
         payload = jsonable_encoder(record)
         try:
             async with self.session_factory() as session:
+                session_id = payload.get("session_id")
+                s_uuid = uuid.UUID(session_id) if isinstance(session_id, str) else session_id
+                req_uuid = uuid.UUID(payload["request_id"]) if isinstance(payload["request_id"], str) else payload["request_id"]
+
                 await session.execute(
                     insert(investigations).values(
-                        request_id=payload["request_id"],
-                        session_id=payload.get("session_id"),
+                        request_id=req_uuid,
+                        session_id=s_uuid,
                         question=payload["question"],
                         answer=payload.get("answer"),
                         tool_calls=payload.get("tool_calls", []),
                         tool_results=payload.get("tool_results", []),
                         status=payload.get("status", "completed"),
                         error=payload.get("error"),
-                        created_at=payload["created_at"],
-                        updated_at=payload["updated_at"],
+                        created_at=parse_dt(payload.get("created_at")),
+                        updated_at=parse_dt(payload.get("updated_at")),
                     )
                 )
 
@@ -67,7 +87,7 @@ class InvestigationStore:
                 for tool_call in tool_calls:
                     await session.execute(
                         insert(ai_tool_calls).values(
-                            request_id=payload["request_id"],
+                            request_id=req_uuid,
                             name=tool_call.get("name"),
                             args=tool_call.get("args"),
                             result=tool_call.get("result"),
@@ -84,11 +104,11 @@ class InvestigationStore:
                         continue
                     await session.execute(
                         insert(ai_chat_messages).values(
-                            request_id=payload["request_id"],
-                            session_id=payload.get("session_id"),
+                            request_id=req_uuid,
+                            session_id=s_uuid,
                             role=message.get("role"),
                             content=message.get("content"),
-                            created_at=message.get("created_at", datetime.utcnow()),
+                            created_at=parse_dt(message.get("created_at")),
                         )
                     )
 
@@ -193,6 +213,224 @@ class InvestigationStore:
             await session.commit()
             row = result.mappings().first()
             return dict(row) if row else {}
+
+    async def create_session(
+        self,
+        session_id: str | None = None,
+        session_name: str | None = None,
+        metadata: dict | None = None,
+    ) -> dict[str, Any]:
+        await self._check()
+        now = datetime.utcnow()
+        if session_id:
+            s_id = uuid.UUID(session_id) if isinstance(session_id, str) else session_id
+        else:
+            s_id = uuid.uuid4()
+        name = session_name or f"New Chat {now.strftime('%Y-%m-%d %H:%M')}"
+        async with self.session_factory() as session:
+            # Check if session already exists
+            existing = await session.execute(
+                select(ai_chat_sessions).where(ai_chat_sessions.c.id == s_id)
+            )
+            row = existing.mappings().first()
+            if row:
+                return jsonable_encoder(dict(row))
+
+            result = await session.execute(
+                insert(ai_chat_sessions)
+                .values(
+                    id=s_id,
+                    session_name=name,
+                    metadata=metadata or {},
+                    created_at=now,
+                    updated_at=now,
+                )
+                .returning(ai_chat_sessions)
+            )
+            await session.commit()
+            row = result.mappings().first()
+            return jsonable_encoder(dict(row)) if row else {}
+
+    async def list_sessions(self, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        await self._check()
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(ai_chat_sessions)
+                .order_by(ai_chat_sessions.c.updated_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            return jsonable_encoder([dict(row) for row in result.mappings().all()])
+
+    async def get_session(self, session_id: str) -> dict[str, Any] | None:
+        await self._check()
+        s_id = uuid.UUID(session_id) if isinstance(session_id, str) else session_id
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(ai_chat_sessions).where(ai_chat_sessions.c.id == s_id)
+            )
+            row = result.mappings().first()
+            return jsonable_encoder(dict(row)) if row else None
+
+    async def rename_session(self, session_id: str, session_name: str) -> dict[str, Any] | None:
+        await self._check()
+        s_id = uuid.UUID(session_id) if isinstance(session_id, str) else session_id
+        async with self.session_factory() as session:
+            result = await session.execute(
+                update(ai_chat_sessions)
+                .where(ai_chat_sessions.c.id == s_id)
+                .values(session_name=session_name, updated_at=datetime.utcnow())
+                .returning(ai_chat_sessions)
+            )
+            await session.commit()
+            row = result.mappings().first()
+            return jsonable_encoder(dict(row)) if row else None
+
+    async def delete_session(self, session_id: str) -> bool:
+        await self._check()
+        s_id = uuid.UUID(session_id) if isinstance(session_id, str) else session_id
+        async with self.session_factory() as session:
+            # Delete messages first
+            await session.execute(
+                delete(ai_chat_messages).where(ai_chat_messages.c.session_id == s_id)
+            )
+            # Update investigations session_id to Null
+            await session.execute(
+                update(investigations)
+                .where(investigations.c.session_id == s_id)
+                .values(session_id=None)
+            )
+            # Delete session
+            await session.execute(
+                delete(ai_chat_sessions).where(ai_chat_sessions.c.id == s_id)
+            )
+            await session.commit()
+            return True
+
+    async def get_session_messages(self, session_id: str) -> list[dict[str, Any]]:
+        await self._check()
+        s_id = uuid.UUID(session_id) if isinstance(session_id, str) else session_id
+        async with self.session_factory() as session:
+            # Get messages
+            messages_res = await session.execute(
+                select(ai_chat_messages)
+                .where(ai_chat_messages.c.session_id == s_id)
+                .order_by(ai_chat_messages.c.created_at.asc())
+            )
+            message_rows = [dict(row) for row in messages_res.mappings().all()]
+            if not message_rows:
+                return []
+            
+            # Fetch all tool calls for these request IDs
+            req_ids = [row["request_id"] for row in message_rows]
+            tool_calls_res = await session.execute(
+                select(ai_tool_calls)
+                .where(ai_tool_calls.c.request_id.in_(req_ids))
+                .order_by(ai_tool_calls.c.created_at.asc())
+            )
+            tool_calls_rows = [dict(row) for row in tool_calls_res.mappings().all()]
+            
+            # Map tool calls to their request IDs
+            tool_calls_by_req = {}
+            for tc in tool_calls_rows:
+                req_id = tc["request_id"]
+                if req_id not in tool_calls_by_req:
+                    tool_calls_by_req[req_id] = []
+                tool_calls_by_req[req_id].append({
+                    "name": tc["name"],
+                    "args": tc["args"],
+                    "result": tc["result"],
+                    "success": tc["success"],
+                    "duration_ms": tc["duration_ms"],
+                    "error": tc["error"]
+                })
+                
+            # Populate messages with tool calls
+            for msg in message_rows:
+                # Convert created_at to isoformat string to make it JSON serializable safely
+                if isinstance(msg.get("created_at"), datetime):
+                    msg["created_at"] = msg["created_at"].isoformat()
+                
+                # Convert UUID fields to strings
+                for uuid_field in ("id", "session_id", "request_id"):
+                    if msg.get(uuid_field):
+                        msg[uuid_field] = str(msg[uuid_field])
+                
+                if msg["role"] == "assistant":
+                    msg["tool_calls"] = tool_calls_by_req.get(uuid.UUID(msg["request_id"]) if isinstance(msg["request_id"], str) else msg["request_id"], [])
+                else:
+                    msg["tool_calls"] = []
+                    
+            return jsonable_encoder(message_rows)
+
+    async def get_ai_dashboard_stats(self) -> dict[str, Any]:
+        await self._check()
+        async with self.session_factory() as session:
+            # 1. Total conversations
+            sessions_count_stmt = select(func.count()).select_from(ai_chat_sessions)
+            sessions_count_res = await session.execute(sessions_count_stmt)
+            total_conversations = sessions_count_res.scalar() or 0
+
+            # 2. Total agent runs (investigations)
+            runs_count_stmt = select(func.count()).select_from(investigations)
+            runs_count_res = await session.execute(runs_count_stmt)
+            total_agent_runs = runs_count_res.scalar() or 0
+
+            # 3. Success rate (completed investigations vs failed)
+            success_count_stmt = select(func.count()).select_from(investigations).where(investigations.c.status == "completed")
+            success_count_res = await session.execute(success_count_stmt)
+            successful_runs = success_count_res.scalar() or 0
+            success_rate = (successful_runs / total_agent_runs * 100) if total_agent_runs > 0 else 100.0
+
+            # 4. Tool usage statistics
+            tool_usage_stmt = select(
+                ai_tool_calls.c.name,
+                func.count().label("count"),
+                func.avg(ai_tool_calls.c.duration_ms).label("avg_duration"),
+                func.count().filter(ai_tool_calls.c.success == True).label("success_count")
+            ).group_by(ai_tool_calls.c.name)
+            tool_usage_res = await session.execute(tool_usage_stmt)
+            tool_stats = []
+            for row in tool_usage_res.mappings().all():
+                row_dict = dict(row)
+                row_dict["count"] = row_dict["count"] or 0
+                row_dict["avg_duration"] = float(row_dict["avg_duration"]) if row_dict["avg_duration"] else 0.0
+                row_dict["success_count"] = row_dict["success_count"] or 0
+                row_dict["success_rate"] = (row_dict["success_count"] / row_dict["count"] * 100) if row_dict["count"] > 0 else 100.0
+                tool_stats.append(row_dict)
+
+            # 5. Memory statistics (number of messages stored)
+            messages_count_stmt = select(func.count()).select_from(ai_chat_messages)
+            messages_count_res = await session.execute(messages_count_stmt)
+            total_messages = messages_count_res.scalar() or 0
+
+            # 6. Recent activity (last 5 investigations)
+            recent_activity_stmt = select(investigations).order_by(investigations.c.created_at.desc()).limit(5)
+            recent_activity_res = await session.execute(recent_activity_stmt)
+            recent_activity = [dict(row) for row in recent_activity_res.mappings().all()]
+
+            # 7. System health - check database health
+            db_status = "healthy"
+            try:
+                await session.execute(text("SELECT 1"))
+            except Exception:
+                db_status = "unhealthy"
+
+            return jsonable_encoder({
+                "total_conversations": total_conversations,
+                "total_agent_runs": total_agent_runs,
+                "success_rate": round(success_rate, 2),
+                "tool_usage": tool_stats,
+                "memory_stats": {
+                    "total_messages": total_messages,
+                },
+                "recent_activity": recent_activity,
+                "system_health": {
+                    "database": db_status,
+                    "status": "operational" if db_status == "healthy" else "degraded"
+                },
+                "model_name": settings.OPENROUTER_MODEL
+            })
 
 
 persistence_store = InvestigationStore(async_session)
