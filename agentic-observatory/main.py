@@ -5,7 +5,6 @@ from data.db import init_db
 from contextlib import asynccontextmanager
 from utils.reports import (
     REPORT_DIR,
-    generate_pdf,
     normalize_recipients,
     render_report_html,
     send_email,
@@ -322,8 +321,6 @@ async def create_report(
         )
         output_dir = Path(REPORT_DIR)
         output_dir.mkdir(parents=True, exist_ok=True)
-        pdf_file = output_dir / f"report_{report['id']}.pdf"
-        pdf_path = str(generate_pdf(html_content, pdf_file)) if pdf_file.parent.exists() else None
         if recipients:
             send_email(request.subject, recipients, html_content, attachments=[Path(pdf_path)] if pdf_path else None)
             report = await persistence_store.update_report_status(
@@ -335,7 +332,6 @@ async def create_report(
         return success_response(data=report, message="Report generated and sent")
     except Exception as exc:
         return success_response(data=None, message=f"Report creation failed: {str(exc)}")
-
 
 @app.post("/reports/send")
 async def send_saved_report(

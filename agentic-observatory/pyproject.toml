@@ -19,5 +19,4 @@ dependencies = [
     "asyncpg",
     "python-jose[cryptography]",
     "Jinja2",
-    "WeasyPrint",
 ]

@@ -8,11 +8,6 @@ from utils.logging import logger
 from email.message import EmailMessage
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-try:
-    from weasyprint import HTML
-    WEASYPRINT_AVAILABLE = True
-except ImportError: 
-    WEASYPRINT_AVAILABLE = False
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 TEMPLATE_DIR = BASE_DIR / "reports" / "templates"
@@ -30,7 +25,6 @@ REPORT_TEMPLATES = {
     "failure_investigation": "failure_investigation.html",
 }
 
-
 def render_report_html(report_type: str, report_data: dict[str, Any]) -> str:
     template_name = REPORT_TEMPLATES.get(report_type)
     if not template_name:
@@ -38,17 +32,6 @@ def render_report_html(report_type: str, report_data: dict[str, Any]) -> str:
 
     template = ENV.get_template(template_name)
     return template.render(report=report_data)
-
-
-def generate_pdf(html: str, output_path: Path) -> Path | None:
-    if not WEASYPRINT_AVAILABLE:
-        logger.warning("WeasyPrint is unavailable; skipping PDF generation.")
-        return None
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    HTML(string=html).write_pdf(str(output_path))
-    return output_path
-
 
 # send email with the given subject, recipients, html body and attachments (if any)
 def send_email(
