@@ -11,9 +11,41 @@ const navItems = [
 
 export default function Header() {
   return (
-    <header className="site-header">
-      <div className="header-inner">
-        <Link href="/" className="brand">
+    <header
+      style={{
+        borderBottom: "1px solid var(--border)",
+        background: "var(--surface)",
+        position: "sticky",
+        top: 0,
+        zIndex: 100,
+        backdropFilter: "blur(8px)",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "1600px",
+          margin: "0 auto",
+          padding: "6px 20px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 20,
+          minHeight: 40,
+        }}
+      >
+        <Link
+          href="/"
+          style={{
+            fontWeight: 700,
+            fontSize: 13,
+            textDecoration: "none",
+            color: "var(--text)",
+            whiteSpace: "nowrap",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
           Backup Observatory
         </Link>
         <HeaderNav items={navItems} />

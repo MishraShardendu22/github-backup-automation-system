@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { sessionService } from "@/services/session.service";
 import type { Session } from "@/types";
 
@@ -33,7 +33,7 @@ export function useSessions(token?: string | null) {
       await sessionService.create(token, id, name);
       await fetchSessions();
     },
-    [token, fetchSessions]
+    [token, fetchSessions],
   );
 
   const renameSession = useCallback(
@@ -42,7 +42,7 @@ export function useSessions(token?: string | null) {
       await sessionService.rename(token, id, name);
       await fetchSessions();
     },
-    [token, fetchSessions]
+    [token, fetchSessions],
   );
 
   const deleteSession = useCallback(
@@ -51,7 +51,7 @@ export function useSessions(token?: string | null) {
       await sessionService.delete(token, id);
       await fetchSessions();
     },
-    [token, fetchSessions]
+    [token, fetchSessions],
   );
 
   return {

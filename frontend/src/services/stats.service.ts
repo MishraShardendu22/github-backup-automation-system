@@ -27,12 +27,12 @@ interface DashboardStats {
 export const statsService = {
   async get(token?: string | null): Promise<DashboardStats | null> {
     const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    
+    if (token) headers.Authorization = `Bearer ${token}`;
+
     try {
       const res = await fetch(`${AGENT_URL}/stats`, { headers });
       if (!res.ok) return null;
-      
+
       const data = await res.json();
       return data.data;
     } catch {

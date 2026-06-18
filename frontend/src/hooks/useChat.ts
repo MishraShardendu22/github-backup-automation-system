@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { sessionService } from "@/services/session.service";
 import type { Message } from "@/types";
 
@@ -43,14 +43,19 @@ export function useChat(token: string | null, sessionId: string | null) {
     setMessages((prev) => [...prev, message]);
   }, []);
 
-  const updateMessage = useCallback((id: string, updates: Partial<Message> | ((prev: Message) => Message)) => {
-    setMessages((prev) =>
-      prev.map((m) => {
-        if (m.id !== id) return m;
-        return typeof updates === 'function' ? updates(m) : { ...m, ...updates };
-      })
-    );
-  }, []);
+  const updateMessage = useCallback(
+    (id: string, updates: Partial<Message> | ((prev: Message) => Message)) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== id) return m;
+          return typeof updates === "function"
+            ? updates(m)
+            : { ...m, ...updates };
+        }),
+      );
+    },
+    [],
+  );
 
   const clearMessages = useCallback(() => {
     setMessages([]);

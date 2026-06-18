@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Inter, Instrument_Serif } from "next/font/google";
+import { Instrument_Serif, Inter } from "next/font/google";
 import Header from "@/components/layout/header";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -17,7 +17,8 @@ const instrumentSerif = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: "Backup Observatory",
-  description: "Monitor backup metrics and failures from the latest stored data",
+  description:
+    "Monitor backup metrics and failures from the latest stored data",
 };
 
 export default function RootLayout({
@@ -27,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${instrumentSerif.variable}`}>
-      <Analytics/>
+      <Analytics />
       <body className="app-shell">
         <a className="skip-link" href="#main-content">
           Skip to content

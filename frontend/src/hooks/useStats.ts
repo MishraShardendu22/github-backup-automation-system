@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { statsService } from "@/services/stats.service";
 import type { DashboardStats } from "@/types";
 

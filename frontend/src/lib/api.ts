@@ -9,7 +9,10 @@ async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function fetchAPI<T>(path: string, options?: FetchOptions): Promise<T> {
+export async function fetchAPI<T>(
+  path: string,
+  options?: FetchOptions,
+): Promise<T> {
   const { retries = 2, retryDelay = 1000, ...fetchOptions } = options || {};
   let lastError: Error | null = null;
 
@@ -35,7 +38,10 @@ export async function fetchAPI<T>(path: string, options?: FetchOptions): Promise
       return res.json();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error("Unknown error");
-      if (attempt < retries && (error instanceof TypeError || lastError.message.includes("fetch"))) {
+      if (
+        attempt < retries &&
+        (error instanceof TypeError || lastError.message.includes("fetch"))
+      ) {
         await sleep(retryDelay * (attempt + 1));
         continue;
       }
@@ -46,7 +52,10 @@ export async function fetchAPI<T>(path: string, options?: FetchOptions): Promise
   throw lastError || new Error("Request failed");
 }
 
-export async function safeFetch<T>(path: string, options?: FetchOptions): Promise<T | null> {
+export async function safeFetch<T>(
+  path: string,
+  options?: FetchOptions,
+): Promise<T | null> {
   try {
     return await fetchAPI<T>(path, options);
   } catch (error) {

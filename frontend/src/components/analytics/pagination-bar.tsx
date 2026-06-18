@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import { useRouter, useSearchParams } from "next/navigation";
 
 const PAGE_SIZES = [10, 25, 50] as const;
 
@@ -7,8 +9,6 @@ export interface PaginationBarProps {
   totalPages: number;
   pageSize: number;
   totalItems: number;
-  onPage: (p: number) => void;
-  onPageSize: (s: number) => void;
 }
 
 export function PaginationBar({
@@ -16,9 +16,22 @@ export function PaginationBar({
   totalPages,
   pageSize,
   totalItems,
-  onPage,
-  onPageSize,
 }: PaginationBarProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const handlePage = (newPage: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("page", String(newPage));
+    router.push(`?${params.toString()}`);
+  };
+
+  const handlePageSize = (newSize: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("page", "1");
+    params.set("pageSize", String(newSize));
+    router.push(`?${params.toString()}`);
+  };
   const from = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, totalItems);
 
@@ -27,7 +40,7 @@ export function PaginationBar({
   const windowEnd = Math.min(windowStart + 4, totalPages);
   const pages = Array.from(
     { length: windowEnd - windowStart + 1 },
-    (_, i) => windowStart + i
+    (_, i) => windowStart + i,
   );
 
   return (
@@ -60,7 +73,7 @@ export function PaginationBar({
           Rows
           <select
             value={pageSize}
-            onChange={(e) => onPageSize(Number(e.target.value))}
+            onChange={(e) => handlePageSize(Number(e.target.value))}
             style={{
               background: "var(--surface)",
               border: "1px solid var(--border)",
@@ -80,18 +93,30 @@ export function PaginationBar({
         </label>
 
         <div style={{ display: "flex", gap: 3 }}>
-          <PBtn onClick={() => onPage(1)} disabled={page <= 1} label="«" />
-          <PBtn onClick={() => onPage(page - 1)} disabled={page <= 1} label="‹" />
+          <PBtn onClick={() => handlePage(1)} disabled={page <= 1} label="«" />
+          <PBtn
+            onClick={() => handlePage(page - 1)}
+            disabled={page <= 1}
+            label="‹"
+          />
           {pages.map((p) => (
             <PBtn
               key={p}
-              onClick={() => onPage(p)}
+              onClick={() => handlePage(p)}
               label={String(p)}
               active={p === page}
             />
           ))}
-          <PBtn onClick={() => onPage(page + 1)} disabled={page >= totalPages} label="›" />
-          <PBtn onClick={() => onPage(totalPages)} disabled={page >= totalPages} label="»" />
+          <PBtn
+            onClick={() => handlePage(page + 1)}
+            disabled={page >= totalPages}
+            label="›"
+          />
+          <PBtn
+            onClick={() => handlePage(totalPages)}
+            disabled={page >= totalPages}
+            label="»"
+          />
         </div>
       </div>
     </div>

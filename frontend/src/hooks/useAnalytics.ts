@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { analyticsService } from "@/services/analytics.service";
-import type { RepoAnalyticsSnapshot, PaginatedResponse } from "@/types";
+import type { PaginatedResponse, RepoAnalyticsSnapshot } from "@/types";
 
 export function useAnalytics() {
-  const [history, setHistory] = useState<PaginatedResponse<RepoAnalyticsSnapshot> | null>(null);
+  const [history, setHistory] =
+    useState<PaginatedResponse<RepoAnalyticsSnapshot> | null>(null);
   const [latest, setLatest] = useState<RepoAnalyticsSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +18,9 @@ export function useAnalytics() {
       const data = await analyticsService.getHistory(page, limit);
       setHistory(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to fetch analytics history");
+      setError(
+        e instanceof Error ? e.message : "Failed to fetch analytics history",
+      );
       console.error("Failed to fetch analytics history", e);
     } finally {
       setLoading(false);
@@ -31,7 +34,9 @@ export function useAnalytics() {
       const data = await analyticsService.getLatest();
       setLatest(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to fetch latest analytics");
+      setError(
+        e instanceof Error ? e.message : "Failed to fetch latest analytics",
+      );
       console.error("Failed to fetch latest analytics", e);
     } finally {
       setLoading(false);
@@ -44,7 +49,9 @@ export function useAnalytics() {
     try {
       return await analyticsService.getForRun(id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to fetch analytics for run");
+      setError(
+        e instanceof Error ? e.message : "Failed to fetch analytics for run",
+      );
       throw e;
     } finally {
       setLoading(false);

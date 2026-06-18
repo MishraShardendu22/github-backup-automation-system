@@ -1,4 +1,4 @@
-import { STATUS_COLORS, STATUS_BACKGROUNDS } from "@/constants/status";
+import { STATUS_BACKGROUNDS, STATUS_COLORS } from "@/constants/status";
 
 // ─── Formatting utilities ────────────────────────────────────────────────────
 
@@ -17,7 +17,7 @@ export function formatBytes(bytes: number): string {
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+  return `${(bytes / k ** i).toFixed(1)} ${sizes[i]}`;
 }
 
 export function formatDate(dateStr: string): string {
@@ -58,11 +58,16 @@ export function timeAgo(dateStr: string): string {
 // ─── Status styling utilities ────────────────────────────────────────────────
 
 export function statusColor(status: string): string {
-  return STATUS_COLORS[status as keyof typeof STATUS_COLORS] || STATUS_COLORS.default;
+  return (
+    STATUS_COLORS[status as keyof typeof STATUS_COLORS] || STATUS_COLORS.default
+  );
 }
 
 export function statusBg(status: string): string {
-  return STATUS_BACKGROUNDS[status as keyof typeof STATUS_BACKGROUNDS] || STATUS_BACKGROUNDS.default;
+  return (
+    STATUS_BACKGROUNDS[status as keyof typeof STATUS_BACKGROUNDS] ||
+    STATUS_BACKGROUNDS.default
+  );
 }
 
 // ─── ID generation ───────────────────────────────────────────────────────────

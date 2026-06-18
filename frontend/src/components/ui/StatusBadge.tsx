@@ -6,15 +6,14 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const badgeClass = 
-    status === "completed" ? "badge-success" :
-    status === "running" ? "badge-running" :
-    status === "failed" ? "badge-error" :
-    "badge";
+  const badgeClass =
+    status === "completed"
+      ? "badge-success"
+      : status === "running"
+        ? "badge-running"
+        : status === "failed"
+          ? "badge-error"
+          : "badge";
 
-  return (
-    <span className={cn("badge", badgeClass, className)}>
-      {status}
-    </span>
-  );
+  return <span className={cn("badge", badgeClass, className)}>{status}</span>;
 }

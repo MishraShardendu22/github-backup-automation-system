@@ -1,27 +1,34 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { aiService } from "@/services/ai.service";
-import type { Message, StreamEvent, ConfirmationRequest } from "@/types";
+import { useCallback, useState } from "react";
 import { uid } from "@/lib/utils";
+import { aiService } from "@/services/ai.service";
+import type { ConfirmationRequest, Message, StreamEvent } from "@/types";
 
 interface UseStreamingAgentOptions {
   onLogout: () => void;
   onStatsRefresh?: () => void;
 }
 
-export function useStreamingAgent({ onLogout, onStatsRefresh }: UseStreamingAgentOptions) {
+export function useStreamingAgent({
+  onLogout,
+  onStatsRefresh,
+}: UseStreamingAgentOptions) {
   const [sending, setSending] = useState(false);
   const [activeStep, setActiveStep] = useState<string>("idle");
-  const [activeConfirmation, setActiveConfirmation] = useState<ConfirmationRequest | null>(null);
+  const [activeConfirmation, setActiveConfirmation] =
+    useState<ConfirmationRequest | null>(null);
 
   const sendMessage = useCallback(
     async (
       token: string,
       question: string,
       sessionId: string,
-      onMessageUpdate: (id: string, updates: Partial<Message> | ((prev: Message) => Message)) => void,
-      onMessageAdd: (message: Message) => void
+      onMessageUpdate: (
+        id: string,
+        updates: Partial<Message> | ((prev: Message) => Message),
+      ) => void,
+      onMessageAdd: (message: Message) => void,
     ) => {
       if (sending) return;
 
@@ -72,26 +79,29 @@ export function useStreamingAgent({ onLogout, onStatsRefresh }: UseStreamingAgen
                 if (event.type === "info" || event.type === "agent_reasoning") {
                   setActiveStep("agent");
                   if (event.type === "agent_reasoning") {
-                    onMessageUpdate(assistantMsg.id, { iteration: event.iteration });
+                    onMessageUpdate(assistantMsg.id, {
+                      iteration: event.iteration,
+                    });
                   }
                 } else if (event.type === "confirm_required") {
                   setActiveConfirmation({
                     confirmId: event.confirm_id!,
                     name: event.name!,
-                    args: event.args,
+                    args: event.args || {},
                   });
                 } else if (event.type === "tool_start") {
                   setActiveStep("tools");
                   onMessageUpdate(assistantMsg.id, (prev: Message) => {
                     const toolCalls = prev.toolCalls || [];
-                    if (toolCalls.some((t) => t.name === event.name)) return prev;
+                    if (toolCalls.some((t) => t.name === event.name))
+                      return prev;
                     return {
                       ...prev,
                       toolCalls: [
                         ...toolCalls,
                         {
                           name: event.name!,
-                          args: event.args,
+                          args: event.args || {},
                           success: false,
                           running: true,
                           duration_ms: null,
@@ -114,7 +124,7 @@ export function useStreamingAgent({ onLogout, onStatsRefresh }: UseStreamingAgen
                               result: event.result,
                               error: event.error,
                             }
-                          : t
+                          : t,
                       ),
                     };
                   });
@@ -131,7 +141,7 @@ export function useStreamingAgent({ onLogout, onStatsRefresh }: UseStreamingAgen
                     streaming: false,
                   });
                 }
-              } catch (err) {
+              } catch (_err) {
                 onMessageUpdate(assistantMsg.id, (prev: Message) => ({
                   ...prev,
                   content: prev.content + dataStr,
@@ -155,7 +165,7 @@ export function useStreamingAgent({ onLogout, onStatsRefresh }: UseStreamingAgen
         onStatsRefresh?.();
       }
     },
-    [sending, onLogout, onStatsRefresh]
+    [sending, onLogout, onStatsRefresh],
   );
 
   const confirmAction = useCallback(
@@ -169,7 +179,7 @@ export function useStreamingAgent({ onLogout, onStatsRefresh }: UseStreamingAgen
         console.error("Failed to confirm action", e);
       }
     },
-    [activeConfirmation]
+    [activeConfirmation],
   );
 
   return {

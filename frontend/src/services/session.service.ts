@@ -18,11 +18,11 @@ interface Message {
 export const sessionService = {
   async list(token?: string | null): Promise<Session[]> {
     const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    
+    if (token) headers.Authorization = `Bearer ${token}`;
+
     const res = await fetch(`${AGENT_URL}/sessions`, { headers });
     if (!res.ok) throw new Error("Failed to fetch sessions");
-    
+
     const data = await res.json();
     return data.data || [];
   },
@@ -36,7 +36,7 @@ export const sessionService = {
       },
       body: JSON.stringify({ id, session_name: name }),
     });
-    
+
     if (!res.ok) throw new Error("Failed to create session");
   },
 
@@ -49,7 +49,7 @@ export const sessionService = {
       },
       body: JSON.stringify({ session_name: name.trim() }),
     });
-    
+
     if (!res.ok) throw new Error("Failed to rename session");
   },
 
@@ -58,17 +58,22 @@ export const sessionService = {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
-    
+
     if (!res.ok) throw new Error("Failed to delete session");
   },
 
-  async getMessages(token: string | null, sessionId: string): Promise<Message[]> {
+  async getMessages(
+    token: string | null,
+    sessionId: string,
+  ): Promise<Message[]> {
     const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    
-    const res = await fetch(`${AGENT_URL}/sessions/${sessionId}/messages`, { headers });
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch(`${AGENT_URL}/sessions/${sessionId}/messages`, {
+      headers,
+    });
     if (!res.ok) throw new Error("Failed to load messages");
-    
+
     const data = await res.json();
     return data.data || [];
   },

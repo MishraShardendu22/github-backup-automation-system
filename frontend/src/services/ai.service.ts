@@ -8,13 +8,16 @@ export const aiService = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ question: question.trim(), session_id: sessionId }),
+      body: JSON.stringify({
+        question: question.trim(),
+        session_id: sessionId,
+      }),
     });
-    
+
     if (!res.ok || !res.body) {
       throw new Error(`Agent error: ${res.statusText}`);
     }
-    
+
     return res.body.getReader();
   },
 
@@ -27,7 +30,7 @@ export const aiService = {
       },
       body: JSON.stringify({ confirm_id: confirmId, approve }),
     });
-    
+
     if (!res.ok) {
       throw new Error("Failed to confirm action");
     }

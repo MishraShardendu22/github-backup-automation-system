@@ -1,8 +1,8 @@
 import Link from "next/link";
-import type { BackupRun } from "@/types";
-import { formatBytes, formatDate, formatDuration } from "@/lib/utils";
-import { StatusBadge, MetricCard } from "@/components/ui";
+import { StatusBadge } from "@/components/ui";
 import { safeFetch } from "@/lib/api";
+import { formatBytes, formatDate, formatDuration } from "@/lib/utils";
+import type { BackupRun } from "@/types";
 
 interface DashboardStats {
   total_runs: number;
@@ -19,22 +19,25 @@ interface DashboardStats {
   total_size_bytes: number;
   largest_archive_bytes: number;
   largest_repository: string;
-  latest_analytics: any | null;
+  latest_analytics: unknown;
 }
-
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 async function fetchStats(): Promise<DashboardStats | null> {
   return safeFetch<DashboardStats>("/api/dashboard/stats");
 }
 
 async function fetchLatestRun(): Promise<BackupRun | null> {
-  const data = await safeFetch<{ run: BackupRun | null }>("/api/backups/latest");
+  const data = await safeFetch<{ run: BackupRun | null }>(
+    "/api/backups/latest",
+  );
   return data?.run || null;
 }
 
 export default async function DashboardPage() {
-  const [stats, latestRun] = await Promise.all([fetchStats(), fetchLatestRun()]);
+  const [stats, latestRun] = await Promise.all([
+    fetchStats(),
+    fetchLatestRun(),
+  ]);
 
   return (
     <div className="page">
@@ -61,11 +64,19 @@ export default async function DashboardPage() {
         <div className="hero-stack">
           <div className="stat-card stat-card--compact">
             <div className="stat-label">Latest run</div>
-            <div style={{ marginTop: 6 }}>
-              {latestRun ? <StatusBadge status={latestRun.status} /> : <span className="text-muted" style={{ fontSize: 13 }}>No run yet</span>}
+            <div style={{ marginTop: 4 }}>
+              {latestRun ? (
+                <StatusBadge status={latestRun.status} />
+              ) : (
+                <span className="text-muted" style={{ fontSize: 12 }}>
+                  No run yet
+                </span>
+              )}
             </div>
-            <div className="text-xs text-muted" style={{ marginTop: 6 }}>
-              {latestRun ? formatDate(latestRun.started_at) : "Start the backup worker"}
+            <div className="text-xs text-muted" style={{ marginTop: 4 }}>
+              {latestRun
+                ? formatDate(latestRun.started_at)
+                : "Start the backup worker"}
             </div>
           </div>
 
@@ -76,7 +87,7 @@ export default async function DashboardPage() {
                 ? `${stats.success_rate.toFixed(0)}%`
                 : "—"}
             </div>
-            <div className="text-xs text-muted" style={{ marginTop: 6 }}>
+            <div className="text-xs text-muted" style={{ marginTop: 4 }}>
               {stats?.total_runs ?? 0} total runs
             </div>
           </div>
@@ -86,7 +97,7 @@ export default async function DashboardPage() {
             <div className="stat-value stat-value--md">
               {formatBytes(stats?.total_size_bytes ?? 0)}
             </div>
-            <div className="text-xs text-muted" style={{ marginTop: 6 }}>
+            <div className="text-xs text-muted" style={{ marginTop: 4 }}>
               {stats?.distinct_repos ?? 0} distinct repos
             </div>
           </div>
@@ -98,7 +109,9 @@ export default async function DashboardPage() {
         <div className="stat-card">
           <div className="stat-label">Avg duration</div>
           <div className="stat-value">
-            {stats?.avg_duration_ms ? formatDuration(stats.avg_duration_ms) : "—"}
+            {stats?.avg_duration_ms
+              ? formatDuration(stats.avg_duration_ms)
+              : "—"}
           </div>
         </div>
         <div className="stat-card">
@@ -127,25 +140,47 @@ export default async function DashboardPage() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              gap: 12,
+              gap: 10,
               flexWrap: "wrap",
             }}
           >
             <div>
-              <div className="section-title">Latest backup run — #{latestRun.id}</div>
-              <div className="section-desc">
-                Started {formatDate(latestRun.started_at)} · {formatDuration(latestRun.duration_ms)}
+              <div
+                className="section-title"
+                style={{ fontSize: 13, fontWeight: 600 }}
+              >
+                Latest backup run — #{latestRun.id}
+              </div>
+              <div
+                className="section-desc"
+                style={{
+                  fontSize: 11.5,
+                  color: "var(--text-muted)",
+                  marginTop: 2,
+                }}
+              >
+                Started {formatDate(latestRun.started_at)} ·{" "}
+                {formatDuration(latestRun.duration_ms)}
               </div>
             </div>
-            <Link href={`/backups/${latestRun.id}`} className="btn btn-outline" style={{ fontSize: 12 }}>
+            <Link
+              href={`/backups/${latestRun.id}`}
+              className="btn btn-outline"
+              style={{ fontSize: 11 }}
+            >
               View full results →
             </Link>
           </div>
 
-          <div className="metric-grid metric-grid--four" style={{ marginTop: 16 }}>
+          <div
+            className="metric-grid metric-grid--four"
+            style={{ marginTop: 12 }}
+          >
             <div className="card-flat">
               <div className="stat-label">Repos backed up</div>
-              <div className="stat-value stat-value--md">{latestRun.total_repos}</div>
+              <div className="stat-value stat-value--md">
+                {latestRun.total_repos}
+              </div>
             </div>
             <div className="card-flat">
               <div className="stat-label">Successful</div>
@@ -157,7 +192,9 @@ export default async function DashboardPage() {
               <div className="stat-label">Failed</div>
               <div
                 className="stat-value stat-value--md"
-                style={{ color: latestRun.failed > 0 ? "var(--danger)" : "inherit" }}
+                style={{
+                  color: latestRun.failed > 0 ? "var(--danger)" : "inherit",
+                }}
               >
                 {latestRun.failed}
               </div>
@@ -178,9 +215,7 @@ export default async function DashboardPage() {
           href="/backups"
           title="Backup History"
           desc="All past runs and per-repo results"
-          icon={
-            <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
-          }
+          icon={<path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />}
         />
         <NavCard
           href="/analytics"
@@ -236,20 +271,20 @@ function NavCard({
       <div
         className="card"
         style={{
-          padding: "18px 20px",
+          padding: "14px 16px",
           cursor: "pointer",
           display: "flex",
           flexDirection: "column",
-          gap: 10,
+          gap: 8,
           height: "100%",
           transition: "border-color 0.15s",
         }}
       >
         <div
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 9,
+            width: 32,
+            height: 32,
+            borderRadius: 8,
             background: "rgba(212,168,50,0.1)",
             display: "flex",
             alignItems: "center",
@@ -257,8 +292,8 @@ function NavCard({
           }}
         >
           <svg
-            width="18"
-            height="18"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="var(--accent)"
@@ -271,10 +306,12 @@ function NavCard({
           </svg>
         </div>
         <div>
-          <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>
+          <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text)" }}>
             {title}
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>
+          <div
+            style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}
+          >
             {desc}
           </div>
         </div>

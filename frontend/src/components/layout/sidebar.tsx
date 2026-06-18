@@ -1,14 +1,14 @@
 "use client";
 
+import {
+  BarChart3,
+  GitBranch,
+  History,
+  LayoutDashboard,
+  Radio,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  History,
-  BarChart3,
-  Radio,
-  GitBranch,
-} from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -74,7 +74,9 @@ export default function Sidebar() {
                 marginBottom: 2,
                 textDecoration: "none",
                 color: isActive ? "var(--accent)" : "var(--text-secondary)",
-                background: isActive ? "rgba(212, 168, 50, 0.08)" : "transparent",
+                background: isActive
+                  ? "rgba(212, 168, 50, 0.08)"
+                  : "transparent",
                 transition: "all 0.15s",
               }}
             >

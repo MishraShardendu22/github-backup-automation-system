@@ -18,13 +18,24 @@ export function LoginPanel({ onLogin, loading, error }: LoginPanelProps) {
   return (
     <div className="ai-login-panel">
       <div className="ai-login-icon" aria-hidden="true">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M12 2a5 5 0 0 1 5 5v2H7V7a5 5 0 0 1 5-5z" />
           <rect x="3" y="9" width="18" height="13" rx="2" />
           <circle cx="12" cy="15" r="1.5" />
         </svg>
       </div>
-      <p className="ai-login-label">Sign in to access the AI Observatory Dashboard</p>
+      <p className="ai-login-label">
+        Sign in to access the AI Observatory Dashboard
+      </p>
       <form onSubmit={handleSubmit} className="ai-login-form" noValidate>
         <input
           type="text"
@@ -44,8 +55,17 @@ export function LoginPanel({ onLogin, loading, error }: LoginPanelProps) {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        {error && <p role="alert" className="ai-login-error">{error}</p>}
-        <button type="submit" className="sendBtn" disabled={loading || !username || !password} style={{ width: "100%", marginTop: 4 }}>
+        {error && (
+          <p role="alert" className="ai-login-error">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          className="sendBtn"
+          disabled={loading || !username || !password}
+          style={{ width: "100%", marginTop: 4 }}
+        >
           {loading ? "Signing in…" : "Sign In"}
         </button>
       </form>
