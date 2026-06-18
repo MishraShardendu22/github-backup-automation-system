@@ -21,7 +21,10 @@ export const sessionService = {
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const res = await fetch(`${AGENT_URL}/sessions`, { headers });
-    if (!res.ok) throw new Error("Failed to fetch sessions");
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Failed to fetch sessions: ${res.status} ${errText}`);
+    }
 
     const data = await res.json();
     return data.data || [];
@@ -37,7 +40,10 @@ export const sessionService = {
       body: JSON.stringify({ id, session_name: name }),
     });
 
-    if (!res.ok) throw new Error("Failed to create session");
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Failed to create session: ${res.status} ${errText}`);
+    }
   },
 
   async rename(token: string, id: string, name: string): Promise<void> {
@@ -50,7 +56,10 @@ export const sessionService = {
       body: JSON.stringify({ session_name: name.trim() }),
     });
 
-    if (!res.ok) throw new Error("Failed to rename session");
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Failed to rename session: ${res.status} ${errText}`);
+    }
   },
 
   async delete(token: string, id: string): Promise<void> {
@@ -59,7 +68,10 @@ export const sessionService = {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (!res.ok) throw new Error("Failed to delete session");
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Failed to delete session: ${res.status} ${errText}`);
+    }
   },
 
   async getMessages(
@@ -72,7 +84,10 @@ export const sessionService = {
     const res = await fetch(`${AGENT_URL}/sessions/${sessionId}/messages`, {
       headers,
     });
-    if (!res.ok) throw new Error("Failed to load messages");
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Failed to load messages: ${res.status} ${errText}`);
+    }
 
     const data = await res.json();
     return data.data || [];

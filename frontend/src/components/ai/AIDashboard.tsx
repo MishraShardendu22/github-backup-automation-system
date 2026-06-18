@@ -91,6 +91,22 @@ const TrashIcon = () => (
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
 );
+const LockIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ flexShrink: 0 }}
+  >
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
 
 export function AIDashboard() {
   const {
@@ -109,6 +125,7 @@ export function AIDashboard() {
   const {
     sessions,
     loading: sessionsLoading,
+    error: sessionsError,
     createSession,
     renameSession,
     deleteSession,
@@ -124,10 +141,13 @@ export function AIDashboard() {
   const [input, setInput] = useState("");
   const [loadMsg, setLoadMsg] = useState("");
 
-  const { messages, addMessage, updateMessage, clearMessages } = useChat(
-    auth.token,
-    activeSessionId,
-  );
+  const {
+    messages,
+    loading: messagesLoading,
+    addMessage,
+    updateMessage,
+    clearMessages,
+  } = useChat(auth.token, activeSessionId);
   const {
     sending,
     activeStep,
@@ -151,12 +171,12 @@ export function AIDashboard() {
   }, []);
 
   useEffect(() => {
-    if (statsLoading || sessionsLoading) {
+    if (statsLoading || sessionsLoading || messagesLoading) {
       setLoadMsg(
         LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)],
       );
     }
-  }, [statsLoading, sessionsLoading]);
+  }, [statsLoading, sessionsLoading, messagesLoading]);
 
   useEffect(() => {
     if (feedRef.current) {
@@ -164,41 +184,83 @@ export function AIDashboard() {
     }
   }, []);
 
+  useEffect(() => {
+    if (
+      sessionsError &&
+      (sessionsError.includes("401") ||
+        sessionsError.includes("Unauthorized") ||
+        sessionsError.includes("credentials"))
+    ) {
+      logout();
+    }
+  }, [sessionsError, logout]);
+
   const handleCreateSession = async () => {
     if (!isAuthenticated) return;
     const newSessionId = crypto.randomUUID();
-    await createSession(newSessionId, "Analytics Session");
-    setActiveSessionId(newSessionId);
-    clearMessages();
-    setCurrentView("chat");
+    try {
+      await createSession(newSessionId, "Analytics Session");
+      setActiveSessionId(newSessionId);
+      clearMessages();
+      setCurrentView("chat");
+    } catch (err: any) {
+      console.error("Failed to create session:", err);
+      if (
+        err.message &&
+        (err.message.includes("401") ||
+          err.message.includes("Unauthorized") ||
+          err.message.includes("credentials"))
+      ) {
+        logout();
+      } else {
+        alert(err.message || "An error occurred while creating session.");
+      }
+    }
   };
 
   const handleSendMessage = async (question: string) => {
     if (!auth.token || !question.trim() || sending) return;
 
     let sessionId = activeSessionId;
-    if (!sessionId) {
-      const newSessionId = crypto.randomUUID();
-      await createSession(
-        newSessionId,
-        question.trim().slice(0, 30) +
-          (question.trim().length > 30 ? "..." : ""),
-      );
-      sessionId = newSessionId;
-      setActiveSessionId(newSessionId);
-      setCurrentView("chat");
-    } else {
-      setCurrentView("chat");
-    }
+    try {
+      if (!sessionId) {
+        const newSessionId = crypto.randomUUID();
+        await createSession(
+          newSessionId,
+          question.trim().slice(0, 30) +
+            (question.trim().length > 30 ? "..." : ""),
+        );
+        sessionId = newSessionId;
+        setActiveSessionId(newSessionId);
+        setCurrentView("chat");
+      } else {
+        setCurrentView("chat");
+      }
 
-    await sendStreamMessage(
-      auth.token,
-      question,
-      sessionId,
-      updateMessage,
-      addMessage,
-    );
-    setInput("");
+      await sendStreamMessage(
+        auth.token,
+        question,
+        sessionId,
+        updateMessage,
+        addMessage,
+      );
+      setInput("");
+    } catch (err: any) {
+      console.error("Failed to send message:", err);
+      if (
+        err.message &&
+        (err.message.includes("401") ||
+          err.message.includes("Unauthorized") ||
+          err.message.includes("credentials"))
+      ) {
+        logout();
+      } else {
+        alert(
+          err.message ||
+            "An error occurred while communicating with the agent.",
+        );
+      }
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -207,11 +269,25 @@ export function AIDashboard() {
   };
 
   const handleDeleteSession = async (id: string) => {
-    await deleteSession(id);
-    if (activeSessionId === id) {
-      setActiveSessionId(null);
-      clearMessages();
-      setCurrentView("dashboard");
+    try {
+      await deleteSession(id);
+      if (activeSessionId === id) {
+        setActiveSessionId(null);
+        clearMessages();
+        setCurrentView("dashboard");
+      }
+    } catch (err: any) {
+      console.error("Failed to delete session:", err);
+      if (
+        err.message &&
+        (err.message.includes("401") ||
+          err.message.includes("Unauthorized") ||
+          err.message.includes("credentials"))
+      ) {
+        logout();
+      } else {
+        alert(err.message || "An error occurred while deleting the session.");
+      }
     }
   };
 
@@ -220,8 +296,15 @@ export function AIDashboard() {
       {/* Sidebar */}
       <aside className="ai-sidebar">
         <div className="ai-sidebar-header">
-          <button className="ai-new-chat-btn" onClick={handleCreateSession}>
-            <PlusIcon />
+          <button
+            className="ai-new-chat-btn"
+            onClick={handleCreateSession}
+            disabled={!isAuthenticated}
+            style={
+              !isAuthenticated ? { opacity: 0.6, cursor: "not-allowed" } : {}
+            }
+          >
+            {isAuthenticated ? <PlusIcon /> : <LockIcon />}
             New Analysis Chat
           </button>
         </div>
@@ -390,13 +473,13 @@ export function AIDashboard() {
               </div>
             </div>
           </div>
-          
+
           {sending && (
             <div style={{ flex: "1 1 auto", minWidth: 200, maxWidth: 500 }}>
               <WorkflowDiagram activeStep={activeStep} />
             </div>
           )}
-          
+
           <div
             style={{
               display: "flex",
@@ -583,9 +666,25 @@ export function AIDashboard() {
                       key={prompt}
                       type="button"
                       className="premadeBtn"
-                      onClick={() => handleSendMessage(prompt)}
-                      disabled={sending}
+                      onClick={() => {
+                        if (isAuthenticated) {
+                          handleSendMessage(prompt);
+                        }
+                      }}
+                      disabled={sending || !isAuthenticated}
+                      style={
+                        !isAuthenticated
+                          ? {
+                              opacity: 0.6,
+                              cursor: "not-allowed",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }
+                          : {}
+                      }
                     >
+                      {!isAuthenticated && <LockIcon />}
                       {prompt}
                     </button>
                   ))}
@@ -594,7 +693,22 @@ export function AIDashboard() {
             )
           ) : (
             <div className="ai-chat-messages">
-              {messages.length === 0 ? (
+              {messagesLoading ? (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    minHeight: "200px",
+                    color: "var(--text-secondary)",
+                    fontSize: "14px",
+                  }}
+                >
+                  <LoaderPanel
+                    message={loadMsg || "Retrieving conversation history..."}
+                  />
+                </div>
+              ) : messages.length === 0 ? (
                 <div
                   style={{
                     display: "flex",
@@ -638,8 +752,7 @@ export function AIDashboard() {
                   resize: "none",
                   margin: 0,
                   padding: "8px 12px",
-                  display: "flex",
-                  alignItems: "center",
+                  lineHeight: "20px",
                 }}
                 placeholder={
                   currentView === "dashboard"

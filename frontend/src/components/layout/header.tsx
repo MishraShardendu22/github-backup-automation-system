@@ -22,10 +22,11 @@ export default function Header() {
       }}
     >
       <div
+        className="header-container"
         style={{
           maxWidth: "1600px",
           margin: "0 auto",
-          padding: "6px 20px",
+          padding: "6px clamp(20px, 3vw, 32px)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",

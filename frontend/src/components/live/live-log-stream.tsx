@@ -61,16 +61,33 @@ export function LiveLogStream() {
 
   return (
     <>
-      <div className="pill status-pill" style={{ marginBottom: 16 }}>
-        <span
+      <div className="page-head" style={{ marginBottom: 8 }}>
+        <div>
+          <div className="page-kicker">Real-time</div>
+          <h1 className="page-title">Live logs</h1>
+          <p className="page-subtitle">
+            A clean stream of worker events from PostgreSQL-backed execution
+            logs.
+          </p>
+        </div>
+        <div
+          className="pill status-pill"
           style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: connected ? "var(--success)" : "var(--danger)",
+            alignSelf: "flex-start",
+            marginTop: 48,
+            cursor: "default",
           }}
-        />
-        {connected ? "Connected" : "Disconnected"}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: connected ? "var(--success)" : "var(--danger)",
+            }}
+          />
+          {connected ? "Connected" : "Disconnected"}
+        </div>
       </div>
 
       <div className="card log-card">
