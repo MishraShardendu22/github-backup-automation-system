@@ -1,0 +1,6 @@
+src/components/** linguist-vendored
+src/constants/** linguist-vendored
+src/hooks/** linguist-vendored
+src/lib/** linguist-vendored
+src/services/** linguist-vendored
+src/types/** linguist-vendored
