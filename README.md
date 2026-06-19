@@ -1,100 +1,62 @@
 # Backup Observatory (GitHub Backup)
 
-A compact Go-based system that clones, archives, and stores GitHub repositories into a single backup repo and exposes a Postgres-backed dashboard for visibility.
+A compact, multi-service system that clones, archives, and stores GitHub repositories into a single backup repository. It features a Go-based CLI worker, a Go/Postgres REST API & WebSocket backend, a Next.js frontend dashboard, and an AI-driven Agentic Observatory.
 
-This repository contains two main programs:
-- a worker (CLI) that runs backup flows and stores lightweight SQLite metadata (entrypoint: [main.go](main.go#L1))
-- a web backend (dashboard/API) that serves metrics, run history, real-time logs and analytics (entrypoint: [backend/main.go](backend/main.go#L1))
+## Architecture Overview
 
-**Quick summary**
-- Worker: Walks GitHub (org / user / personal private), deduplicates repos, checks remote HEAD hashes, clones changed repos, archives them to tar.gz, commits to a central `_Repos` git repository and pushes to a configured remote.
-- Backend: Connects to PostgreSQL, runs migrations, serves a REST API and a WebSocket endpoint used by the frontend to show runs, metrics and live logs.
+This repository is structured as a monorepo containing the following core services:
 
-**Repository layout (high level)**
-- `main.go` – worker entrypoint and configuration loader. See [main.go](main.go#L1).
-- `backend/` – web server, handlers and websocket logic. See [backend/main.go](backend/main.go#L1) and [backend/routes/app.routes.go](backend/routes/app.routes.go#L1).
-- `service/` – core worker logic. See [service/process.service.go](service/process.service.go#L1) and [service/backup.service.go](service/backup.service.go#L1).
-- `service/helper/` – shell helpers for git, cloning, archiving and pushing. See [service/helper/git.go](service/helper/git.go#L1) and [service/helper/repo.go](service/helper/repo.go#L1).
-- `controller/` – GitHub API fetch logic. See [controller/repo.controller.go](controller/repo.controller.go#L1).
-- `database/` – SQLite helpers for repo hashes and logs. See [database/repo_hash.go](database/repo_hash.go#L1) and [database/schema.go](database/schema.go#L1).
-- `backend/db` – PostgreSQL connection and migrations used by the dashboard. See [backend/db/postgres.go](backend/db/postgres.go#L1).
-- `model/` – central struct definitions used by the worker. See [model/config.model.go](model/config.model.go#L1).
+1. **[Worker (CLI)](#worker-cli)**: The root-level Go application that handles the core logic of walking GitHub, deduplicating repositories, checking remote HEAD hashes, cloning, and archiving to a central `_Repos` git repository.
+2. **[Backend API (`backend/`)](./backend/README.md)**: A Go web server connected to PostgreSQL that serves metrics, run history, and real-time logs via REST APIs and WebSockets.
+3. **[Frontend Dashboard (`frontend/`)](./frontend/README.md)**: A Next.js application that provides a sleek, real-time UI for monitoring backup runs, metrics, and logs.
+4. **[Agentic Observatory (`agentic-observatory/`)](./agentic-observatory/README.md)**: A Python-based agentic layer using FastAPI and OpenRouter to analyze and interact with the backup data.
 
-**Key behaviors and flow**
-- Configuration: loaded from environment and `.env` in development via `config.LoadEnv()` and `config.LoadConfig()`; model of environment variables is in [config/config.go](config/config.go#L1).
-- Worker startup: `main.go` initializes logger, loads config, connects to SQLite (`database.ConnectSQLite`) and invokes `service.RunBackupFlow`.
-- RunBackupFlow: migrates/init DB, collects repositories using `controller.RepoController*`, deduplicates, prints list and calls `ProcessRepos`.
-- ProcessRepos: ensures `_Repos` exists and initialized, removes deleted repos (DB vs GitHub), then:
-  - Phase 1: `parallelHashCheck` (concurrent) — compute remote HEAD with `git ls-remote` to determine if repo changed (skip if unchanged and recorded in DB).
-  - Phase 2: `parallelCloneAndArchive` (worker pool) — shallow clone, remove `.git`, tar.gz the repo.
-  - Phase 3: For each archive: `git add`, `git commit` (skips if no changes), `git push` (serial per repo), update SQLite record (`UpsertRepo`).
-- Resilience: errors during per-repo operations are recorded to the DB via `database.LogFailure` and logged.
+---
 
-**Environment variables**
-- Worker / config (used in `config.LoadConfig`):
-  - `ORG_ACCOUNT` — organization name for org repos
-  - `PROJECT_ACCOUNT` — project/user for public repos
-  - `MAIN_ACCOUNT` — (unused placeholder)
-  - `DB_PATH` — SQLite file path (default `./app.db`)
-  - `BACKUP_REPO_PATH` — remote git URL used to initialize and push `_Repos` (required to initialize)
-  - `GITHUB_TOKEN_PRIVATE` — token with access to private repos (used by `RepoControllerPrivate`)
-  - `GITHUB_TOKEN_PERSONAL` — personal token to increase API rate limits for public calls
+## Worker (CLI)
 
-- Backend (from `.env` / environment):
-  - `POSTGRES_URL` — full Postgres connection string for the dashboard (required for backend)
-  - `SERVER_PORT` — optional (default `8080`)
+The core backup engine is located in the root directory. It uses a lightweight SQLite database for local state management and metadata.
 
-There is an example `sample.env` in the repo to guide local setup.
+### Key Behaviors
+- **Phase 1 (Hash Check)**: Computes remote HEAD concurrently to determine if a repository has changed.
+- **Phase 2 (Clone & Archive)**: Shallow clones changed repositories, removes `.git`, and creates a `tar.gz` archive.
+- **Phase 3 (Commit & Push)**: Commits the archive to the central `_Repos` git repository and pushes to a remote.
 
-**How to run**
-Prerequisites: Go toolchain installed, `git`, `tar` available on PATH and shell access.
+### Configuration & Environment
+Create a `.env` file in the root directory (see `sample.env`):
+- `ORG_ACCOUNT` / `PROJECT_ACCOUNT`: GitHub account targets.
+- `DB_PATH`: SQLite file path (defaults to `./app.db`).
+- `BACKUP_REPO_PATH`: The remote git URL for the `_Repos` directory.
+- `GITHUB_TOKEN_PRIVATE` / `GITHUB_TOKEN_PERSONAL`: Authentication tokens.
 
-- Worker (backup flow):
-```
+### How to Run the Worker
+Ensure you have the Go toolchain installed, along with `git` and `tar`.
+
+```bash
 # configure .env or export env vars
 go run main.go
 ```
 
-- Backend (dashboard/API):
-```
-cd backend
-# ensure POSTGRES_URL is set and Postgres is available
-go run main.go
-```
+---
 
-Notes:
-- The worker uses an on-disk SQLite database by default (`DB_PATH`), while the web dashboard requires PostgreSQL for richer analytics and persistence.
-- The worker modifies the `_Repos` directory and runs `git` commands there; ensure the user running the worker has appropriate permissions.
+## Service Documentation
 
-**Important files & where to look for details**
-- Worker entry: [main.go](main.go#L1)
-- Worker flow: [service/backup.service.go](service/backup.service.go#L1) and [service/process.service.go](service/process.service.go#L1)
-- Git helpers: [service/helper/git.go](service/helper/git.go#L1)
-- Repo list fetch: [controller/repo.controller.go](controller/repo.controller.go#L1)
-- SQLite schema and operations: [database/schema.go](database/schema.go#L1) and [database/repo_hash.go](database/repo_hash.go#L1)
-- Backend server & routes: [backend/main.go](backend/main.go#L1) and [backend/routes/app.routes.go](backend/routes/app.routes.go#L1)
-- Backend handlers and API contract: [backend/handlers/backup.go](backend/handlers/backup.go#L1) and related handler files in the same folder.
+For detailed instructions on running and developing each service, please refer to their respective README files:
 
-**Security & operational considerations**
-- Tokens: keep `GITHUB_TOKEN_PRIVATE` and `GITHUB_TOKEN_PERSONAL` secret; do not commit them.
-- Backup repository remote: `BACKUP_REPO_PATH` should be an authenticated remote (SSH or HTTPS with token) where the backup commits are pushed.
-- Large repositories: archives larger than ~95MB are skipped (configurable) to avoid hitting GitHub blob limits; see `maxGitHubBlobSize` in [service/process.service.go](service/process.service.go#L1).
+- 📖 **[Backend Documentation](./backend/README.md)**
+- 📖 **[Frontend Documentation](./frontend/README.md)**
+- 📖 **[Agentic Observatory Documentation](./agentic-observatory/README.md)**
 
-**Troubleshooting**
-- If worker logs show authentication or rate-limit errors, verify tokens and scopes. See [controller/repo.controller.go](controller/repo.controller.go#L1) for how responses are handled.
-- If backend fails to start, verify `POSTGRES_URL` and check migration errors printed by `backend/db/postgres.go`.
+---
 
-**Screenshots and UI**
-UI screenshots are included in the `Images/` folder. Quick references:
+## Screenshots
 
-- Overview page: [main overview page](https://res.cloudinary.com/dkxw15and/image/upload/v1780047783/image-upload-app/rsuxybpd0actmninvj88.webp)
-- Backups / history detail: [backup detail page](https://res.cloudinary.com/dkxw15and/image/upload/v1780047783/image-upload-app/jwc21gmydgfsszmkf7gp.webp)
-- Metrics: [metrics page](https://res.cloudinary.com/dkxw15and/image/upload/v1780047783/image-upload-app/cetzwjhsihehjfajnsjd.webp)
-- Live logs (websocket): [live websocket logs feed](https://res.cloudinary.com/dkxw15and/image/upload/v1780047783/image-upload-app/g1kenharzgn55a5f6u32.webp)
+- **Overview Page**: [View](https://res.cloudinary.com/dkxw15and/image/upload/v1780047783/image-upload-app/rsuxybpd0actmninvj88.webp)
+- **Backups / History Detail**: [View](https://res.cloudinary.com/dkxw15and/image/upload/v1780047783/image-upload-app/jwc21gmydgfsszmkf7gp.webp)
+- **Metrics**: [View](https://res.cloudinary.com/dkxw15and/image/upload/v1780047783/image-upload-app/cetzwjhsihehjfajnsjd.webp)
+- **Live Logs (WebSocket)**: [View](https://res.cloudinary.com/dkxw15and/image/upload/v1780047783/image-upload-app/g1kenharzgn55a5f6u32.webp)
+- **Tailscale Tunnel & Console**: [View](https://res.cloudinary.com/dkxw15and/image/upload/v1780047963/image-upload-app/joue7txmzahi5zfooex5.png)
+- **SSH Multiplexing Management**: [View](https://res.cloudinary.com/dkxw15and/image/upload/v1780048238/image-upload-app/e6uagcp9nue0prxzkpdm.png)
 
-- Tailscale / tunnel & server console: [tailscale tunneling](https://res.cloudinary.com/dkxw15and/image/upload/v1780047963/image-upload-app/joue7txmzahi5zfooex5.png)
-- Service and Timer details: [Details](https://res.cloudinary.com/dkxw15and/image/upload/v1780047608/image-upload-app/v4gtqqkjsv5cwrlxmtsj.png)
-- SSH Multiplexing and Config Management for multiple github accounts: [SSH Management](https://res.cloudinary.com/dkxw15and/image/upload/v1780048238/image-upload-app/e6uagcp9nue0prxzkpdm.png)
-
-**Contributing**
+## Contributing
 Please follow the coding conventions already present in the repository. See `CONTRIBUTING.md` for a short guide.
