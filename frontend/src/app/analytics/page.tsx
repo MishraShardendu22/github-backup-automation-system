@@ -95,7 +95,7 @@ export default async function AnalyticsOverviewPage({
                   width: 28,
                   height: 28,
                   borderRadius: 7,
-                  background: "rgba(212,168,50,0.1)",
+                  background: "var(--accent-bg)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -177,7 +177,7 @@ export default async function AnalyticsOverviewPage({
                   width: 28,
                   height: 28,
                   borderRadius: 7,
-                  background: "rgba(212,168,50,0.1)",
+                  background: "var(--accent-bg)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -253,8 +253,8 @@ function InsufficientData({ days }: { days: number }) {
       style={{
         padding: "16px 20px",
         borderRadius: 8,
-        background: "rgba(212,168,50,0.06)",
-        border: "1px solid rgba(212,168,50,0.18)",
+        background: "rgba(139, 92, 246, 0.06)",
+        border: "1px solid rgba(139, 92, 246, 0.18)",
         display: "flex",
         gap: 10,
         alignItems: "flex-start",
@@ -310,10 +310,10 @@ function StorageStat({
     <div
       style={{
         background: accent
-          ? "linear-gradient(135deg, rgba(212,168,50,0.10), rgba(212,168,50,0.02))"
+          ? "linear-gradient(135deg, rgba(139, 92, 246, 0.10), rgba(139, 92, 246, 0.02))"
           : "rgba(255,255,255,0.03)",
         border: accent
-          ? "1px solid rgba(212,168,50,0.20)"
+          ? "1px solid rgba(139, 92, 246, 0.20)"
           : "1px solid rgba(255,255,255,0.06)",
         borderRadius: 7,
         padding: "10px 12px",

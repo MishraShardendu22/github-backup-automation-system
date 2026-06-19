@@ -1,8 +1,8 @@
 .segmented {
   display: flex;
   gap: 4px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-light);
   border-radius: 999px;
   padding: 4px;
 }
@@ -11,20 +11,27 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 5px 14px;
+  padding: 6px 16px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   border: none;
   cursor: pointer;
   background: transparent;
   color: var(--text-secondary);
-  min-height: 30px;
+  min-height: 32px;
   text-decoration: none;
+  transition: all 0.2s;
+}
+
+.segmented-btn:hover {
+  color: var(--text);
 }
 
 .segmented-btn--active {
-  background: var(--text);
+  background: var(--surface2);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
 }
 
 .grid {
@@ -109,7 +116,7 @@
 
 /* Log levels */
 .log-info {
-  color: #1d4ed8;
+  color: #60a5fa; /* A softer blue for logs instead of the main accent, for readability */
 }
 
 .log-warn {

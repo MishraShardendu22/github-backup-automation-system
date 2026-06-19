@@ -39,9 +39,9 @@ export default async function SnapshotsPage({
 
   return (
     <div className="page">
-      <div className="page-head">
+      <div className="page-head" style={{ marginBottom: 24 }}>
         <div>
-          <div className="page-kicker">Analytics · Git Snapshots</div>
+          <div className="page-kicker">Analytics / Git Snapshots</div>
           <h1 className="page-title">Repository Snapshots</h1>
           <p className="page-subtitle">
             Git metadata captured by the backend collector at each backup point

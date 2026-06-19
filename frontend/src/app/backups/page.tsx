@@ -38,12 +38,12 @@ export default async function BackupsPage({
 
   return (
     <div className="page">
-      <div className="page-head">
+      <div className="page-head" style={{ marginBottom: 24 }}>
         <div>
-          <div className="page-kicker">History</div>
-          <h1 className="page-title">Backup runs</h1>
+          <div className="page-kicker">Backup Run Logs</div>
+          <h1 className="page-title">Execution History</h1>
           <p className="page-subtitle">
-            Complete history of all backup executions and their results.
+            Complete history of all backup executions and their detailed results.
           </p>
         </div>
       </div>

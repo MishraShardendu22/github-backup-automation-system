@@ -49,73 +49,57 @@ export default async function DashboardPage() {
 
   return (
     <div className="page">
-      {/* ── Hero ──────────────────────────────────────────────────────── */}
-      <section className="hero-grid">
-        <div className="card hero-card">
-          <div className="hero-glow" />
-          <div className="hero-content">
-            <div className="page-kicker">Backup operations</div>
-            <h1 className="hero-title">Backup Observatory</h1>
-            <p className="hero-subtitle">
-              Monitor your GitHub repository backups — run health, storage
-              usage, and live worker status at a glance.
+      {/* ── Hero / Status Block ───────────────────────────────────────── */}
+      <section className="card section-card" style={{ padding: "24px 32px", background: "linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(24, 24, 27, 0.8) 100%)", borderTop: "2px solid var(--accent)" }}>
+        <div className="page-head" style={{ marginBottom: 16 }}>
+          <div>
+            <div className="page-kicker">Backup Operations Overview</div>
+            <h1 className="page-title">System Status</h1>
+            <p className="page-subtitle">
+              Real-time monitoring of GitHub repository backups, worker health, and system storage.
             </p>
-            <div className="hero-tags">
-              <span className="pill">PostgreSQL</span>
-              <span className="pill">Execution logs</span>
-              <span className="pill">Repo archive sizes</span>
-              <span className="pill">Git snapshots</span>
-            </div>
           </div>
+          {latestRun && (
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 6 }}>
+                Last Execution
+              </div>
+              <StatusBadge status={latestRun.status} />
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6 }}>
+                {formatDate(latestRun.started_at)}
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="hero-stack">
-          <div className="stat-card stat-card--compact">
-            <div className="stat-label">Latest run</div>
-            <div style={{ marginTop: 4 }}>
-              {latestRun ? (
-                <StatusBadge status={latestRun.status} />
-              ) : (
-                <span className="text-muted" style={{ fontSize: 12 }}>
-                  No run yet
-                </span>
-              )}
-            </div>
-            <div className="text-xs text-muted" style={{ marginTop: 4 }}>
-              {latestRun
-                ? formatDate(latestRun.started_at)
-                : "Start the backup worker"}
-            </div>
+        <div className="metric-grid metric-grid--four stats-grid" style={{ marginTop: 24 }}>
+          <div className="stat-card">
+            <div className="stat-label">Total Repos Tracked</div>
+            <div className="stat-value">{stats?.distinct_repos ?? 0}</div>
           </div>
-
-          <div className="stat-card stat-card--compact">
-            <div className="stat-label">Success rate</div>
-            <div className="stat-value stat-value--md">
+          <div className="stat-card">
+            <div className="stat-label">Total Backup Size</div>
+            <div className="stat-value stat-value--md">{formatBytes(stats?.total_size_bytes ?? 0)}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">System Success Rate</div>
+            <div className="stat-value stat-value--success">
               {stats?.success_rate && stats.success_rate > 0
-                ? `${stats.success_rate.toFixed(0)}%`
+                ? `${stats.success_rate.toFixed(1)}%`
                 : "—"}
             </div>
-            <div className="text-xs text-muted" style={{ marginTop: 4 }}>
-              {stats?.total_runs ?? 0} total runs
-            </div>
           </div>
-
-          <div className="stat-card stat-card--compact">
-            <div className="stat-label">Total backup size</div>
-            <div className="stat-value stat-value--md">
-              {formatBytes(stats?.total_size_bytes ?? 0)}
-            </div>
-            <div className="text-xs text-muted" style={{ marginTop: 4 }}>
-              {stats?.distinct_repos ?? 0} distinct repos
-            </div>
+          <div className="stat-card">
+            <div className="stat-label">Total Executions</div>
+            <div className="stat-value">{stats?.total_runs ?? 0}</div>
           </div>
         </div>
       </section>
 
-      {/* ── 4 KPI tiles ──────────────────────────────────────────────── */}
+      {/* ── KPI tiles ──────────────────────────────────────────────── */}
       <div className="metric-grid metric-grid--four stats-grid">
         <div className="stat-card">
-          <div className="stat-label">Avg duration</div>
+          <div className="stat-label">Avg Run Duration</div>
           <div className="stat-value">
             {stats?.avg_duration_ms
               ? formatDuration(stats.avg_duration_ms)
@@ -123,19 +107,19 @@ export default async function DashboardPage() {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Successful repos</div>
+          <div className="stat-label">Successful Repos</div>
           <div className="stat-value stat-value--success">
             {stats?.total_successful ?? 0}
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Failed repos</div>
+          <div className="stat-label">Failed Repos</div>
           <div className="stat-value stat-value--danger">
             {stats?.total_failed ?? 0}
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Logs stored</div>
+          <div className="stat-label">Logs Processed</div>
           <div className="stat-value">{stats?.total_logs ?? 0}</div>
         </div>
       </div>
@@ -293,7 +277,7 @@ function NavCard({
             width: 32,
             height: 32,
             borderRadius: 8,
-            background: "rgba(212,168,50,0.1)",
+            background: "var(--accent-bg)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

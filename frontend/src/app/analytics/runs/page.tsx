@@ -39,9 +39,9 @@ export default async function RunHistoryPage({
 
   return (
     <div className="page">
-      <div className="page-head">
+      <div className="page-head" style={{ marginBottom: 24 }}>
         <div>
-          <div className="page-kicker">Analytics · Run History</div>
+          <div className="page-kicker">Analytics / Run History</div>
           <h1 className="page-title">Backup Runs</h1>
           <p className="page-subtitle">
             Full paginated history of all backup runs. Click a run to see

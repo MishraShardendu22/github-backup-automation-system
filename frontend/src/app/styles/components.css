@@ -1,11 +1,13 @@
 /* Cards */
 .card {
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
-  padding: 14px 18px;
+  padding: 18px 24px;
   box-shadow: var(--shadow-sm);
   min-width: 0;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .card.table-card {
@@ -17,24 +19,31 @@
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: 12px 16px;
+  padding: 14px 18px;
   min-width: 0;
 }
 
 /* Stat Cards */
 .stat-card {
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: 12px 16px;
+  padding: 16px 20px;
   box-shadow: var(--shadow-sm);
   min-width: 0;
   min-height: 100%;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.stat-card:hover {
+  border-color: var(--border-glow);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-1px);
 }
 
 .stat-card--compact {
   min-height: 76px;
-  padding: 12px 14px;
+  padding: 14px 18px;
 }
 
 .stat-label {
@@ -98,31 +107,44 @@
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: 7px;
-  font-size: 12.5px;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s;
   border: 1px solid transparent;
   font-family: var(--font-sans);
 }
 
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent-hover);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.6);
+}
+
 .btn-outline {
-  background: var(--bg-card);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--text);
   border: 1px solid var(--border);
 }
 
 .btn-outline:hover {
   background: var(--bg-hover);
+  border-color: var(--text-muted);
 }
 
 .btn-ghost {
   background: transparent;
   color: var(--text-secondary);
-  padding: 6px 10px;
+  padding: 8px 12px;
 }
 
 .btn-ghost:hover {
@@ -149,21 +171,22 @@
 
 .table th {
   text-align: left;
-  padding: 9px 14px;
-  font-size: 10.5px;
+  padding: 12px 18px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
-  background: var(--surface2);
+  border-bottom: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .table td {
-  padding: 10px 14px;
-  font-size: 12.5px;
+  padding: 12px 18px;
+  font-size: 13px;
   border-bottom: 1px solid var(--border-light);
   color: var(--text);
+  transition: background 0.2s;
 }
 
 .table tr:last-child td {
@@ -171,7 +194,7 @@
 }
 
 .table tbody tr:hover {
-  background: var(--bg-hover);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .table td::before {
@@ -181,19 +204,20 @@
 /* Form Inputs */
 .input {
   width: 100%;
-  padding: 10px 14px;
-  background: var(--bg-card);
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--text);
   font-size: 14px;
   font-family: var(--font-sans);
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .input:focus {
-  border-color: var(--text);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
 }
 
 .input::placeholder {
@@ -202,44 +226,48 @@
 
 .textarea {
   width: 100%;
-  padding: 12px 14px;
-  background: var(--bg-card);
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--text);
   font-size: 14px;
   font-family: var(--font-sans);
   outline: none;
   resize: vertical;
   min-height: 100px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .textarea:focus {
-  border-color: var(--text);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
 }
 
 /* Pills */
 .pill {
   display: inline-flex;
   align-items: center;
-  padding: 5px 12px;
-  border-radius: 18px;
-  font-size: 11.5px;
+  padding: 6px 14px;
+  border-radius: 99px;
+  font-size: 12px;
   font-weight: 500;
   border: 1px solid var(--border);
-  background: var(--bg-card);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s;
   white-space: nowrap;
 }
 
 .pill:hover {
   color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--text-muted);
 }
 
 .dive-link:hover {
-  background: rgba(212, 168, 50, 0.06) !important;
+  background: var(--accent-bg) !important;
 }
 
 /* Common Layout Helpers */

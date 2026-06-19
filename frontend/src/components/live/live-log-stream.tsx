@@ -20,7 +20,7 @@ function levelColor(level?: string) {
     case "warn":
       return "var(--warning)";
     case "info":
-      return "#1565c0";
+      return "var(--accent)";
     default:
       return "var(--text-muted)";
   }
@@ -61,12 +61,12 @@ export function LiveLogStream() {
 
   return (
     <>
-      <div className="page-head" style={{ marginBottom: 8 }}>
+      <div className="page-head" style={{ marginBottom: 24 }}>
         <div>
-          <div className="page-kicker">Real-time</div>
-          <h1 className="page-title">Live logs</h1>
+          <div className="page-kicker">Live Monitor</div>
+          <h1 className="page-title">Real-time execution logs</h1>
           <p className="page-subtitle">
-            A clean stream of worker events from PostgreSQL-backed execution
+            A live stream of worker events from PostgreSQL-backed execution
             logs.
           </p>
         </div>
@@ -74,7 +74,6 @@ export function LiveLogStream() {
           className="pill status-pill"
           style={{
             alignSelf: "flex-start",
-            marginTop: 48,
             cursor: "default",
           }}
         >
@@ -122,7 +121,7 @@ export function LiveLogStream() {
                 >
                   {log.level?.toUpperCase()}
                 </span>
-                <span className="text-xs truncate" style={{ color: "#6b4c9a" }}>
+                <span className="text-xs truncate" style={{ color: "var(--accent)", opacity: 0.8 }}>
                   {log.repository ? `[${log.repository}]` : "[system]"}
                 </span>
                 <span style={{ fontSize: 12, color: "var(--text)" }}>

@@ -43,19 +43,12 @@ const treeData: NavNode[] = [
   },
   {
     label: "Backups",
-    icon: Folder,
-    representativeIcon: History,
-    children: [
-      {
-        label: "History",
-        href: "/backups",
-        icon: History,
-      },
-    ],
+    href: "/backups",
+    icon: History,
   },
   {
     label: "Analytics",
-    icon: Folder,
+    icon: BarChart3,
     representativeIcon: BarChart3,
     children: [
       {
@@ -64,12 +57,12 @@ const treeData: NavNode[] = [
         icon: BarChart3,
       },
       {
-        label: "Runs",
+        label: "Run Logs",
         href: "/analytics/runs",
         icon: Terminal,
       },
       {
-        label: "Snapshots",
+        label: "Git Snapshots",
         href: "/analytics/snapshots",
         icon: FileCode,
       },
@@ -731,7 +724,7 @@ export default function Sidebar({
         <div
           style={{
             padding: isCollapsed ? "12px 8px" : "12px 16px",
-            borderTop: "1px solid var(--border)",
+            borderTop: "1px solid var(--border-light)",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
@@ -747,7 +740,7 @@ export default function Sidebar({
                   title="Sign Out"
                   style={{
                     background: "transparent",
-                    border: "1px solid var(--border)",
+                    border: "1px solid var(--border-light)",
                     color: "var(--text-secondary)",
                     padding: "6px",
                     borderRadius: "4px",
@@ -765,7 +758,7 @@ export default function Sidebar({
                   onClick={onCloseMobile}
                   title="Sign In"
                   style={{
-                    border: "1px solid var(--border)",
+                    border: "1px solid var(--border-light)",
                     color: "var(--text-secondary)",
                     padding: "6px",
                     borderRadius: "4px",

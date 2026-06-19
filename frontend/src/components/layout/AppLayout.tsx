@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Menu, Activity, Server } from "lucide-react";
 import { useState } from "react";
 import { AIContextProvider } from "./AIContext";
 import Sidebar from "./sidebar";
@@ -38,7 +38,6 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
           <span className="mobile-header-title">Observatory</span>
           <div style={{ width: 32 }} /> {/* Empty space to center title */}
         </header>
-
         {children}
       </div>
     </div>

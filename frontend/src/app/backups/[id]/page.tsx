@@ -30,49 +30,54 @@ export default async function BackupDetailPage({
 
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">
-            <Link
-              href="/backups"
-              style={{ textDecoration: "none", color: "inherit" }}
-            >
-              Backup History
-            </Link>{" "}
-            / Run #{run.id}
+      <div className="card" style={{ padding: "24px 32px", background: "rgba(24, 24, 27, 0.4)", borderLeft: "4px solid var(--accent)", marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+          <div>
+            <div className="page-kicker">
+              <Link
+                href="/backups"
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                Backup History
+              </Link>{" "}
+              / Investigation
+            </div>
+            <h1 className="page-title" style={{ marginTop: 8 }}>Run #{run.id}</h1>
+            <p className="page-subtitle" style={{ marginTop: 8 }}>
+              Started {formatDate(run.started_at)} ·{" "}
+              {formatDuration(run.duration_ms)}
+            </p>
           </div>
-          <h1 className="page-title">Run #{run.id}</h1>
-          <p className="page-subtitle">
-            Started {formatDate(run.started_at)} ·{" "}
-            {formatDuration(run.duration_ms)}
-          </p>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 8 }}>Run Status</div>
+            <StatusBadge status={run.status} />
+          </div>
         </div>
-        <StatusBadge status={run.status} />
-      </div>
 
-      {/* Summary metrics */}
-      <div className="metric-grid metric-grid--four stats-grid">
-        <div className="stat-card">
-          <div className="stat-label">Total repos</div>
-          <div className="stat-value">{run.total_repos}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Successful</div>
-          <div className="stat-value stat-value--success">{run.successful}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Failed</div>
-          <div className="stat-value stat-value--danger">{run.failed}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Skipped</div>
-          <div className="stat-value text-muted">{run.skipped}</div>
+        {/* Summary metrics */}
+        <div className="metric-grid metric-grid--four stats-grid" style={{ marginTop: 24 }}>
+          <div className="card-flat" style={{ background: "transparent" }}>
+            <div className="stat-label">Total Repos</div>
+            <div className="stat-value">{run.total_repos}</div>
+          </div>
+          <div className="card-flat" style={{ background: "transparent" }}>
+            <div className="stat-label">Successful</div>
+            <div className="stat-value stat-value--success">{run.successful}</div>
+          </div>
+          <div className="card-flat" style={{ background: "transparent" }}>
+            <div className="stat-label">Failed</div>
+            <div className="stat-value stat-value--danger">{run.failed}</div>
+          </div>
+          <div className="card-flat" style={{ background: "transparent" }}>
+            <div className="stat-label">Skipped</div>
+            <div className="stat-value text-muted">{run.skipped}</div>
+          </div>
         </div>
       </div>
 
       {/* Repository results */}
       <section className="card section-card">
-        <div className="section-title">Repository results</div>
+        <div className="section-title" style={{ marginBottom: 16 }}>Repository Investigation Logs</div>
         {results.length === 0 ? (
           <p
             style={{

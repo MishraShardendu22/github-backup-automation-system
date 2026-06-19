@@ -208,10 +208,10 @@ export function AIDashboard() {
                   fontSize: "11px",
                   color: "var(--accent)",
                   textTransform: "none",
-                  background: "rgba(212, 168, 50, 0.06)",
+                  background: "rgba(139, 92, 246, 0.06)",
                   padding: "2px 6px",
                   borderRadius: "4px",
-                  border: "1px solid rgba(212, 168, 50, 0.2)",
+                  border: "1px solid rgba(139, 92, 246, 0.2)",
                 }}
               >
                 {stats?.model_name || "loading..."}
@@ -225,7 +225,7 @@ export function AIDashboard() {
                   width: "auto",
                   padding: "4px 12px",
                   fontSize: "11px",
-                  background: "rgba(212, 168, 50, 0.12)",
+                  background: "rgba(139, 92, 246, 0.12)",
                   borderColor: "var(--accent)",
                   color: "var(--accent)",
                   marginTop: 0,
