@@ -128,6 +128,8 @@ async def invoke_agent(
             )
             
         logger.info(f"[request_id={request_id}] Turn {iteration + 1} Tool calls: {response.tool_calls}")
+
+        # execute tools calls by the llm and feed the results back to the llm for the next turn
         for tool_call in response.tool_calls:
             tool_args = tool_call["args"]
             tool_name = tool_call["name"]
@@ -332,6 +334,7 @@ async def stream_agent(
                     "args": tool_args
                 })
                 
+                # confirm sending the email with the user before proceeding
                 confirm_event = asyncio.Event()
                 active_confirmations[confirm_id] = confirm_event
                 

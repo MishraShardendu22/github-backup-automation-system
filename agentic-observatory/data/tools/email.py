@@ -1,8 +1,8 @@
 import re
+from config import settings
 from typing import Annotated, Any
 from langchain_core.tools import tool
 from utils.reports import send_email, normalize_recipients
-from config import settings
 
 @tool
 async def send_report_email(
@@ -81,5 +81,6 @@ async def send_report_email(
     </html>
     """
     
+    # sending the email using the send_email utility function
     send_email(subject, to_emails, full_html)
     return {"success": True, "message": f"Email sent successfully to {', '.join(to_emails)}"}

@@ -4,7 +4,6 @@ import smtplib
 from typing import Any
 from pathlib import Path
 from config import settings
-from utils.logging import logger
 from email.message import EmailMessage
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
