@@ -39,9 +39,6 @@ go run main.go
 
 ---
 
-# Demo
-[![Watch Video](https://img.youtube.com/vi/be0UBwk2asc/maxresdefault.jpg)](https://www.youtube.com/watch?v=be0UBwk2asc)
-
 ## Service Documentation
 
 For detailed instructions on running and developing each service, please refer to their respective README files:
@@ -52,14 +49,12 @@ For detailed instructions on running and developing each service, please refer t
 
 ---
 
-## Screenshots
+## Live
 
-- **Overview Page**: [View](https://res.cloudinary.com/dkxw15and/image/upload/v1780047783/image-upload-app/rsuxybpd0actmninvj88.webp)
-- **Backups / History Detail**: [View](https://res.cloudinary.com/dkxw15and/image/upload/v1780047783/image-upload-app/jwc21gmydgfsszmkf7gp.webp)
-- **Metrics**: [View](https://res.cloudinary.com/dkxw15and/image/upload/v1780047783/image-upload-app/cetzwjhsihehjfajnsjd.webp)
-- **Live Logs (WebSocket)**: [View](https://res.cloudinary.com/dkxw15and/image/upload/v1780047783/image-upload-app/g1kenharzgn55a5f6u32.webp)
-- **Tailscale Tunnel & Console**: [View](https://res.cloudinary.com/dkxw15and/image/upload/v1780047963/image-upload-app/joue7txmzahi5zfooex5.png)
-- **SSH Multiplexing Management**: [View](https://res.cloudinary.com/dkxw15and/image/upload/v1780048238/image-upload-app/e6uagcp9nue0prxzkpdm.png)
+- **Live Demo**: https://github.mishrashardendu22.is-a.dev
+- **YouTube Video**: https://www.youtube.com/watch?v=be0UBwk2asc
+
+---
 
 ## Contributing
-Please follow the coding conventions already present in the repository. See `CONTRIBUTING.md` for a short guide.
+Please follow the coding conventions already present in the repsitory. See `CONTRIBUTING.md` for a short guide.
