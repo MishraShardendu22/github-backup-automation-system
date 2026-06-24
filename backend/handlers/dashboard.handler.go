@@ -59,16 +59,18 @@ func GetDashboardStats(c *fiber.Ctx) error {
 
 	// Calculate success rate as average of per-run success rates
 	// This accounts for recovered failures in subsequent runs
-	_ = db.Pool.QueryRow(ctx, `
-		SELECT COALESCE(AVG(
-			CASE 
-				WHEN (successful + failed) > 0 
-				THEN (successful::float / (successful + failed) * 100)
-				ELSE 0
-			END
-		), 0)
-		FROM backup_runs
-	`).Scan(&stats.SuccessRate)
+	// _ = db.Pool.QueryRow(ctx, `
+	// 	SELECT COALESCE(AVG(
+	// 		CASE 
+	// 			WHEN (successful + failed) > 0 
+	// 			THEN (successful::float / (successful + failed) * 100)
+	// 			ELSE 0
+	// 		END
+	// 	), 0)
+	// 	FROM backup_runs
+	// `).Scan(&stats.SuccessRate)
+
+	stats.SuccessRate = (float64(stats.TotalSuccessful) + float64(stats.TotalSkipped))/float64(stats.TotalFailed)
 
 	// Query to get average duration of runs
 	// Note: AVG() returns NUMERIC in PostgreSQL, must cast to BIGINT for int64 scan
