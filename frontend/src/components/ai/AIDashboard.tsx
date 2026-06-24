@@ -335,6 +335,7 @@ export function AIDashboard() {
                         stats.tool_usage.map((tool) => (
                           <tr key={tool.name}>
                             <td
+                              data-label="Tool Name"
                               style={{
                                 fontFamily: "monospace",
                                 color: "var(--accent)",
@@ -343,9 +344,9 @@ export function AIDashboard() {
                             >
                               {tool.name}
                             </td>
-                            <td>{tool.count} runs</td>
-                            <td>{tool.avg_duration.toFixed(0)} ms</td>
-                            <td>
+                            <td data-label="Invocations">{tool.count} runs</td>
+                            <td data-label="Avg Latency">{tool.avg_duration.toFixed(0)} ms</td>
+                            <td data-label="Success Rate">
                               <span
                                 className={`badge ${tool.success_rate > 90 ? "badge-success" : "badge-warning"}`}
                               >

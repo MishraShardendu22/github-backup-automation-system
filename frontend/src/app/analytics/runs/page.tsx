@@ -79,8 +79,8 @@ export default async function RunHistoryPage({
                 <tbody>
                   {runs.map((run) => (
                     <tr key={run.id}>
-                      <td style={{ fontWeight: 600 }}>#{run.id}</td>
-                      <td>
+                      <td data-label="Run #" style={{ fontWeight: 600 }}>#{run.id}</td>
+                      <td data-label="Status">
                         <span
                           className={`badge ${
                             run.status === "completed"
@@ -93,23 +93,24 @@ export default async function RunHistoryPage({
                           {run.status}
                         </span>
                       </td>
-                      <td style={{ fontSize: 14, color: "var(--text-muted)" }}>
+                      <td data-label="Started" style={{ fontSize: 14, color: "var(--text-muted)" }}>
                         {formatDate(run.started_at)}
                       </td>
-                      <td>{formatDuration(run.duration_ms)}</td>
-                      <td>{run.total_repos}</td>
-                      <td style={{ color: "var(--success)" }}>
+                      <td data-label="Duration">{formatDuration(run.duration_ms)}</td>
+                      <td data-label="Repos">{run.total_repos}</td>
+                      <td data-label="✓ OK" style={{ color: "var(--success)" }}>
                         {run.successful}
                       </td>
                       <td
+                        data-label="✗ Failed"
                         style={{
                           color: run.failed > 0 ? "var(--danger)" : "inherit",
                         }}
                       >
                         {run.failed}
                       </td>
-                      <td className="text-muted">{run.skipped}</td>
-                      <td>
+                      <td data-label="Skipped" className="text-muted">{run.skipped}</td>
+                      <td data-label="Details">
                         <Link
                           href={`/backups/${run.id}`}
                           className="btn btn-ghost"

@@ -50,7 +50,7 @@ export default async function DashboardPage() {
   return (
     <div className="page">
       {/* ── Hero / Status Block ───────────────────────────────────────── */}
-      <section className="card section-card" style={{ padding: "32px 48px", background: "linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(24, 24, 27, 0.8) 100%)", borderTop: "2px solid var(--accent)" }}>
+      <section className="card section-card" style={{ background: "linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(24, 24, 27, 0.8) 100%)", borderTop: "2px solid var(--accent)" }}>
         <div className="page-head" style={{ marginBottom: 16 }}>
           <div>
             <div className="page-kicker">Backup Operations Overview</div>

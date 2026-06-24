@@ -30,7 +30,7 @@ export default async function BackupDetailPage({
 
   return (
     <div className="page">
-      <div className="card" style={{ padding: "32px 48px", background: "rgba(24, 24, 27, 0.4)", borderLeft: "4px solid var(--accent)", marginBottom: 32 }}>
+      <div className="card" style={{ background: "rgba(24, 24, 27, 0.4)", borderLeft: "4px solid var(--accent)", marginBottom: 32 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
           <div>
             <div className="page-kicker">
@@ -103,16 +103,17 @@ export default async function BackupDetailPage({
               <tbody>
                 {results.map((result) => (
                   <tr key={result.id}>
-                    <td style={{ fontWeight: 500 }}>{result.repo_full_name}</td>
-                    <td>
+                    <td data-label="Repository" style={{ fontWeight: 500 }}>{result.repo_full_name}</td>
+                    <td data-label="Status">
                       <StatusBadge status={result.status} />
                     </td>
-                    <td>
+                    <td data-label="Archive size">
                       {result.archive_size_bytes > 0
                         ? formatBytes(result.archive_size_bytes)
                         : "—"}
                     </td>
                     <td
+                      data-label="Commit"
                       style={{
                         fontSize: 14,
                         fontFamily: "monospace",
@@ -124,6 +125,7 @@ export default async function BackupDetailPage({
                         : "—"}
                     </td>
                     <td
+                      data-label="Error"
                       style={{
                         fontSize: 14,
                         color: result.error_message

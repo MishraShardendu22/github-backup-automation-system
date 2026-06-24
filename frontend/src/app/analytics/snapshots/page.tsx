@@ -162,27 +162,29 @@ export default async function SnapshotsPage({
                 <tbody>
                   {snapshots.map((snap) => (
                     <tr key={snap.id}>
-                      <td style={{ fontSize: 14 }}>
+                      <td data-label="Captured at" style={{ fontSize: 14 }}>
                         {formatDate(snap.captured_at)}
                       </td>
                       <td
+                        data-label="Commit"
                         style={{ fontSize: 14, fontFamily: "monospace", color: "var(--text-muted)" }}
                       >
                         {snap.head_commit ? snap.head_commit.slice(0, 10) : "—"}
                       </td>
                       <td
+                        data-label="Message"
                         className="truncate"
                         style={{ maxWidth: 180, fontSize: 14 }}
                         title={snap.head_commit_message}
                       >
                         {snap.head_commit_message || "—"}
                       </td>
-                      <td>{snap.total_commits}</td>
-                      <td>{snap.branch_count}</td>
-                      <td>{snap.tag_count}</td>
-                      <td>{snap.tracked_files}</td>
-                      <td>{formatBytes(snap.total_blob_size_bytes)}</td>
-                      <td>{formatBytes(snap.total_archive_size_bytes)}</td>
+                      <td data-label="Commits">{snap.total_commits}</td>
+                      <td data-label="Branches">{snap.branch_count}</td>
+                      <td data-label="Tags">{snap.tag_count}</td>
+                      <td data-label="Files">{snap.tracked_files}</td>
+                      <td data-label="Blob size">{formatBytes(snap.total_blob_size_bytes)}</td>
+                      <td data-label="Archive size">{formatBytes(snap.total_archive_size_bytes)}</td>
                     </tr>
                   ))}
                 </tbody>

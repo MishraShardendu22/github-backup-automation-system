@@ -867,4 +867,53 @@ body.ai-page-active .app-main {
   .ai-login-panel .sendBtn {
     width: 100%;
   }
+
+  .ai-rich-table-container {
+    background: transparent;
+    border: none;
+    overflow: visible;
+  }
+
+  .ai-rich-table thead {
+    display: none;
+  }
+
+  .ai-rich-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .ai-rich-table tr {
+    display: grid;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .ai-rich-table td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-light);
+    text-align: right;
+  }
+
+  .ai-rich-table tr td:last-child {
+    border-bottom: none;
+  }
+
+  .ai-rich-table td::before {
+    content: attr(data-label);
+    flex: 0 0 92px;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.4;
+    text-align: left;
+    text-transform: uppercase;
+  }
 }
