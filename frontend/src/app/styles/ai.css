@@ -306,7 +306,7 @@ body.ai-page-active .app-main {
   background: rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
-  max-width: min(72%, 940px);
+  max-width: min(85%, 1200px);
   width: fit-content;
   color: var(--text);
 }
@@ -334,7 +334,7 @@ body.ai-page-active .app-main {
   gap: 12px;
   align-items: center;
   width: 100%;
-  max-width: 900px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -413,7 +413,7 @@ body.ai-page-active .app-main {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 900px;
+  max-width: 1400px;
   width: 100%;
   margin: 0 auto;
   padding-bottom: 24px;
