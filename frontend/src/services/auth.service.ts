@@ -41,4 +41,15 @@ export const authService = {
       username: localStorage.getItem("agent_username"),
     };
   },
+
+  async validateToken(token: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${AGENT_URL}/sessions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
 };

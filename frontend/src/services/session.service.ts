@@ -22,6 +22,9 @@ export const sessionService = {
 
     const res = await fetch(`${AGENT_URL}/sessions`, { headers });
     if (!res.ok) {
+      if (res.status === 401) {
+        window.dispatchEvent(new Event("auth:unauthorized"));
+      }
       const errText = await res.text().catch(() => "");
       throw new Error(`Failed to fetch sessions: ${res.status} ${errText}`);
     }
@@ -85,6 +88,9 @@ export const sessionService = {
       headers,
     });
     if (!res.ok) {
+      if (res.status === 401) {
+        window.dispatchEvent(new Event("auth:unauthorized"));
+      }
       const errText = await res.text().catch(() => "");
       throw new Error(`Failed to load messages: ${res.status} ${errText}`);
     }

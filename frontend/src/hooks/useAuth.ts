@@ -12,7 +12,13 @@ export function useAuth() {
   useEffect(() => {
     const stored = authService.getStoredSession();
     if (stored.token && stored.username) {
-      setAuth(stored);
+      authService.validateToken(stored.token).then((valid) => {
+        if (valid) {
+          setAuth(stored);
+        } else {
+          authService.clearSession();
+        }
+      });
     }
   }, []);
 

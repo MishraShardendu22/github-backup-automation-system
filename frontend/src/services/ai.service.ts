@@ -15,6 +15,9 @@ export const aiService = {
     });
 
     if (!res.ok || !res.body) {
+      if (res.status === 401) {
+        window.dispatchEvent(new Event("auth:unauthorized"));
+      }
       throw new Error(`Agent error: ${res.statusText}`);
     }
 
@@ -32,6 +35,9 @@ export const aiService = {
     });
 
     if (!res.ok) {
+      if (res.status === 401) {
+        window.dispatchEvent(new Event("auth:unauthorized"));
+      }
       throw new Error("Failed to confirm action");
     }
   },
