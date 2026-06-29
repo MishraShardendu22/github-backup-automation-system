@@ -208,12 +208,15 @@ func PushBackupRepo(label string) error {
 
 /*
 Initialisation script, usually runs only the first time
+gpg verification was casuing runs to fail
+git config commit.gpgsign false 
 */
 func buildInitScript(backupRepoPath string) string {
 	return fmt.Sprintf(`cd _Repos && \
 		git init && \
 		git config user.email "shardendumishra01@gmail.com" && \
 		git config user.name "ShardenduMishra22" && \
+		git config commit.gpgsign false && \ 
 		git checkout -B main && \
 		touch README.md && \
 		git add README.md && \
