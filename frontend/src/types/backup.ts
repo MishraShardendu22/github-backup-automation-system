@@ -1,3 +1,14 @@
+export interface BackupFix {
+  id: number;
+  title: string;
+  description: string;
+  commit_hash: string;
+  author: string;
+  created_at: string;
+  updated_at: string;
+  affected_runs?: number[];
+}
+
 export interface BackupRun {
   id: number;
   status: string;
@@ -9,6 +20,7 @@ export interface BackupRun {
   skipped: number;
   duration_ms: number;
   error_message: string;
+  fixes?: BackupFix[];
 }
 
 export interface BackupResult {

@@ -27,6 +27,11 @@ func Setup(app *fiber.App) {
 	// repos handler
 	api.Get("/repos", handlers.GetRepos)
 
+	// fix handler
+	api.Get("/backup-fixes", handlers.GetBackupFixes)
+	api.Get("/backup-fixes/:id", handlers.GetBackupFix)
+	api.Get("/backup-runs/:id/fixes", handlers.GetBackupRunFixes)
+
 	// analytics handler
 	api.Get("/analytics/history", handlers.GetAnalyticsRuns)
 	api.Get("/analytics/latest", handlers.GetAnalyticsForLatestRun)

@@ -17,17 +17,34 @@ type PaginatedResponse struct {
 }
 
 
+type BackupFix struct {
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Title        string    `json:"title"`
+	Description  string    `json:"description"`
+	CommitHash   string    `json:"commit_hash"`
+	Author       string    `json:"author"`
+	ID           int       `json:"id"`
+	AffectedRuns []int     `json:"affected_runs,omitempty"`
+}
+
+type BackupRunFix struct {
+	RunID int `json:"run_id"`
+	FixID int `json:"fix_id"`
+}
+
 type BackupRun struct {
-	StartedAt    time.Time  `json:"started_at"`
-	Status       string     `json:"status"`
-	ErrorMessage string     `json:"error_message"`
-	DurationMs   int64      `json:"duration_ms"`
-	CompletedAt  *time.Time `json:"completed_at"`
-	ID           int        `json:"id"`
-	TotalRepos   int        `json:"total_repos"`
-	Successful   int        `json:"successful"`
-	Failed       int        `json:"failed"`
-	Skipped      int        `json:"skipped"`
+	StartedAt    time.Time   `json:"started_at"`
+	Status       string      `json:"status"`
+	ErrorMessage string      `json:"error_message"`
+	DurationMs   int64       `json:"duration_ms"`
+	CompletedAt  *time.Time  `json:"completed_at"`
+	ID           int         `json:"id"`
+	TotalRepos   int         `json:"total_repos"`
+	Successful   int         `json:"successful"`
+	Failed       int         `json:"failed"`
+	Skipped      int         `json:"skipped"`
+	Fixes        []BackupFix `json:"fixes,omitempty"`
 }
 
 type BackupResult struct {

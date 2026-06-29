@@ -77,6 +77,37 @@ func GetBackupRuns(c *fiber.Ctx) error {
 		runs = []models.BackupRun{}
 	}
 
+	// get all the fixes that were added
+	if len(runs) > 0 {
+		runIDs := make([]int, len(runs))
+		runMap := make(map[int]*models.BackupRun, len(runs))
+		for i := range runs {
+			runIDs[i] = runs[i].ID
+			runMap[runs[i].ID] = &runs[i]
+		}
+
+		// fetch the fixes thing from database
+		fixesQuery := `
+			SELECT f.id, f.title, f.description, f.commit_hash, f.author, f.created_at, f.updated_at, rf.run_id
+			FROM backup_fixes f
+			JOIN backup_run_fixes rf ON f.id = rf.fix_id
+			WHERE rf.run_id = ANY($1)
+		`
+		fixesRows, err := db.Pool.Query(ctx, fixesQuery, runIDs)
+		if err == nil {
+			defer fixesRows.Close()
+			for fixesRows.Next() {
+				var f models.BackupFix
+				var runID int
+				if err := fixesRows.Scan(&f.ID, &f.Title, &f.Description, &f.CommitHash, &f.Author, &f.CreatedAt, &f.UpdatedAt, &runID); err == nil {
+					if runPtr, exists := runMap[runID]; exists {
+						runPtr.Fixes = append(runPtr.Fixes, f)
+					}
+				}
+			}
+		}
+	}
+
 	return c.JSON(models.PaginatedResponse{
 		Data: runs,
 		Pagination: models.PaginationMeta{
@@ -123,6 +154,22 @@ func GetBackupRun(c *fiber.Ctx) error {
 		results = []models.BackupResult{}
 	}
 
+	// Fetch associated fixes
+	fixesRows, err := db.Pool.Query(context.Background(),
+		`SELECT f.id, f.title, f.description, f.commit_hash, f.author, f.created_at, f.updated_at
+		 FROM backup_fixes f
+		 JOIN backup_run_fixes rf ON f.id = rf.fix_id
+		 WHERE rf.run_id = $1`, r.ID)
+	if err == nil {
+		defer fixesRows.Close()
+		for fixesRows.Next() {
+			var f models.BackupFix
+			if err := fixesRows.Scan(&f.ID, &f.Title, &f.Description, &f.CommitHash, &f.Author, &f.CreatedAt, &f.UpdatedAt); err == nil {
+				r.Fixes = append(r.Fixes, f)
+			}
+		}
+	}
+
 	return c.JSON(fiber.Map{"run": r, "results": results})
 }
 
@@ -141,6 +188,22 @@ func GetLatestBackup(c *fiber.Ctx) error {
 	if err != nil {
 		return c.JSON(fiber.Map{"run": nil})
 	}
+	// Fetch associated fixes
+	fixesRows, err := db.Pool.Query(ctx,
+		`SELECT f.id, f.title, f.description, f.commit_hash, f.author, f.created_at, f.updated_at
+		 FROM backup_fixes f
+		 JOIN backup_run_fixes rf ON f.id = rf.fix_id
+		 WHERE rf.run_id = $1`, r.ID)
+	if err == nil {
+		defer fixesRows.Close()
+		for fixesRows.Next() {
+			var f models.BackupFix
+			if err := fixesRows.Scan(&f.ID, &f.Title, &f.Description, &f.CommitHash, &f.Author, &f.CreatedAt, &f.UpdatedAt); err == nil {
+				r.Fixes = append(r.Fixes, f)
+			}
+		}
+	}
+
 	return c.JSON(fiber.Map{"run": r})
 }
 

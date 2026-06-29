@@ -1,7 +1,8 @@
 import json
 from data import client
 from pathlib import Path
-from data.db import init_db
+from data.db import init_db, async_session
+from sqlalchemy import text
 from contextlib import asynccontextmanager
 from utils.reports import (
     REPORT_DIR,
@@ -364,5 +365,89 @@ async def send_saved_report(
             error_message=str(exc),
         )
         return success_response(data=updated, message=f"Failed to send report: {str(exc)}")
+
+
+class CreateFixRequest(BaseModel):
+    title: str
+    description: str = ""
+    commitHash: str = ""
+    author: str = ""
+    affectedRuns: list[int]
+
+
+@app.post("/backup-fixes", status_code=status.HTTP_201_CREATED)
+async def create_backup_fix(
+    request: CreateFixRequest,
+    current_user: str = Depends(get_current_user),
+):
+    if not async_session:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database session factory is not configured."
+        )
+
+    # Perform database insertions inside a transaction
+    async with async_session() as session:
+        try:
+            # 1. Insert into backup_fixes
+            fix_query = text(
+                """
+                INSERT INTO backup_fixes (title, description, commit_hash, author, created_at, updated_at)
+                VALUES (:title, :description, :commit_hash, :author, NOW(), NOW())
+                RETURNING id
+                """
+            )
+            result = await session.execute(
+                fix_query,
+                {
+                    "title": request.title,
+                    "description": request.description,
+                    "commit_hash": request.commitHash,
+                    "author": request.author,
+                }
+            )
+            fix_id = result.scalar()
+            if not fix_id:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to create fix record"
+                )
+
+            # 2. Insert mapping rows into backup_run_fixes
+            for run_id in request.affectedRuns:
+                # Verify run exists first
+                run_exists = await session.execute(
+                    text("SELECT id FROM backup_runs WHERE id = :run_id"),
+                    {"run_id": run_id}
+                )
+                if not run_exists.scalar():
+                    continue  # skip non-existent runs
+                
+                await session.execute(
+                    text(
+                        """
+                        INSERT INTO backup_run_fixes (run_id, fix_id)
+                        VALUES (:run_id, :fix_id)
+                        ON CONFLICT DO NOTHING
+                        """
+                    ),
+                    {"run_id": run_id, "fix_id": fix_id}
+                )
+
+            await session.commit()
+            return {
+                "id": fix_id,
+                "title": request.title,
+                "description": request.description,
+                "commit_hash": request.commitHash,
+                "author": request.author,
+                "affected_runs": request.affectedRuns,
+            }
+        except Exception as exc:
+            await session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database transaction failed: {str(exc)}"
+            )
 
 
