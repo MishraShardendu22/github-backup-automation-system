@@ -96,10 +96,49 @@ func GetBackupRuns(c *fiber.Ctx) error {
 		fixesRows, err := db.Pool.Query(ctx, fixesQuery, runIDs)
 		if err == nil {
 			defer fixesRows.Close()
+			var fetchedFixes []models.BackupFix
+			var runIDsForFixes []int
+
 			for fixesRows.Next() {
 				var f models.BackupFix
 				var runID int
 				if err := fixesRows.Scan(&f.ID, &f.Title, &f.Description, &f.CommitHash, &f.Author, &f.CreatedAt, &f.UpdatedAt, &runID); err == nil {
+					fetchedFixes = append(fetchedFixes, f)
+					runIDsForFixes = append(runIDsForFixes, runID)
+				}
+			}
+
+			if len(fetchedFixes) > 0 {
+				// Gather all unique fix IDs
+				fixIDs := make([]int, 0, len(fetchedFixes))
+				seenFixes := make(map[int]bool)
+				for _, f := range fetchedFixes {
+					if !seenFixes[f.ID] {
+						seenFixes[f.ID] = true
+						fixIDs = append(fixIDs, f.ID)
+					}
+				}
+
+				// Fetch all run_ids associated with these fix IDs
+				runFixesMap := make(map[int][]int)
+				rfRows, err := db.Pool.Query(ctx, "SELECT fix_id, run_id FROM backup_run_fixes WHERE fix_id = ANY($1)", fixIDs)
+				if err == nil {
+					for rfRows.Next() {
+						var fixID, rID int
+						if err := rfRows.Scan(&fixID, &rID); err == nil {
+							runFixesMap[fixID] = append(runFixesMap[fixID], rID)
+						}
+					}
+					rfRows.Close()
+				}
+
+				// Populate AffectedRuns and append to runs
+				for idx, f := range fetchedFixes {
+					f.AffectedRuns = runFixesMap[f.ID]
+					if f.AffectedRuns == nil {
+						f.AffectedRuns = []int{}
+					}
+					runID := runIDsForFixes[idx]
 					if runPtr, exists := runMap[runID]; exists {
 						runPtr.Fixes = append(runPtr.Fixes, f)
 					}
@@ -165,6 +204,19 @@ func GetBackupRun(c *fiber.Ctx) error {
 		for fixesRows.Next() {
 			var f models.BackupFix
 			if err := fixesRows.Scan(&f.ID, &f.Title, &f.Description, &f.CommitHash, &f.Author, &f.CreatedAt, &f.UpdatedAt); err == nil {
+				// Fetch affected runs for this fix
+				var affectedRuns []int
+				rfRows, err := db.Pool.Query(context.Background(), "SELECT run_id FROM backup_run_fixes WHERE fix_id = $1", f.ID)
+				if err == nil {
+					for rfRows.Next() {
+						var runID int
+						if err := rfRows.Scan(&runID); err == nil {
+							affectedRuns = append(affectedRuns, runID)
+						}
+					}
+					rfRows.Close()
+				}
+				f.AffectedRuns = affectedRuns
 				r.Fixes = append(r.Fixes, f)
 			}
 		}
@@ -199,6 +251,19 @@ func GetLatestBackup(c *fiber.Ctx) error {
 		for fixesRows.Next() {
 			var f models.BackupFix
 			if err := fixesRows.Scan(&f.ID, &f.Title, &f.Description, &f.CommitHash, &f.Author, &f.CreatedAt, &f.UpdatedAt); err == nil {
+				// Fetch affected runs for this fix
+				var affectedRuns []int
+				rfRows, err := db.Pool.Query(ctx, "SELECT run_id FROM backup_run_fixes WHERE fix_id = $1", f.ID)
+				if err == nil {
+					for rfRows.Next() {
+						var runID int
+						if err := rfRows.Scan(&runID); err == nil {
+							affectedRuns = append(affectedRuns, runID)
+						}
+					}
+					rfRows.Close()
+				}
+				f.AffectedRuns = affectedRuns
 				r.Fixes = append(r.Fixes, f)
 			}
 		}

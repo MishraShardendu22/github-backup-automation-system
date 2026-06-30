@@ -9,6 +9,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+/*
+This handler is basically to get the fix details, indivisually and per run.
+there details and other related data.
+
+No route to add or edit in backend cause only verified user should add,
+added them in python backend
+*/ 
+
 // GetBackupFixes returns all fixes ordered by created_at DESC.
 func GetBackupFixes(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -114,6 +122,22 @@ func GetBackupRunFixes(c *fiber.Ctx) error {
 
 	if fixes == nil {
 		fixes = []models.BackupFix{}
+	}
+
+	// Fetch run mappings for each fix
+	for i := range fixes {
+		runRows, err := db.Pool.Query(ctx, "SELECT run_id FROM backup_run_fixes WHERE fix_id = $1", fixes[i].ID)
+		if err == nil {
+			var runs []int
+			for runRows.Next() {
+				var runID int
+				if err := runRows.Scan(&runID); err == nil {
+					runs = append(runs, runID)
+				}
+			}
+			runRows.Close()
+			fixes[i].AffectedRuns = runs
+		}
 	}
 
 	return c.JSON(fixes)

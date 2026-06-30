@@ -80,6 +80,12 @@ class GoBackendClient:
 
         return await self.get("/api/logs", params)
 
+    async def list_backup_fixes(self):
+        return await self.get("/api/backup-fixes")
+
+    async def get_backup_fix_details(self, fix_id: int):
+        return await self.get(f"/api/backup-fixes/{fix_id}")
+
 client = GoBackendClient()
 
 # python tries to evaluate User immediately while the class is still being created.

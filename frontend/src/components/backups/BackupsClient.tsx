@@ -39,6 +39,14 @@ export default function BackupsClient({ initialData }: BackupsClientProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Edit Fix states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editCommit, setEditCommit] = useState("");
+  const [editAuthor, setEditAuthor] = useState("");
+  const [editAffected, setEditAffected] = useState<number[]>([]);
+
   const hasToken = typeof window !== "undefined" && !!localStorage.getItem("agent_token");
 
   // Fetch runs on page change
@@ -124,6 +132,79 @@ export default function BackupsClient({ initialData }: BackupsClientProps) {
   const otherFailedRuns = runs.filter(
     (run) => isFailedRun(run) && createFixForRun && run.id !== createFixForRun.id
   );
+
+  // Edit Fix handlers
+  const startEditing = () => {
+    if (!activeFix) return;
+    setEditTitle(activeFix.title || "");
+    setEditDesc(activeFix.description || "");
+    setEditCommit(activeFix.commit_hash || "");
+    setEditAuthor(activeFix.author || "");
+    setEditAffected(activeFix.affected_runs || []);
+    setIsEditing(true);
+    setSubmitError(null);
+  };
+
+  const handleEditFixSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeFix) return;
+    if (!editTitle.trim()) {
+      setSubmitError("Title is required");
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const updatedFix = await backupService.updateFix(activeFix.id, {
+        title: editTitle,
+        description: editDesc,
+        commitHash: editCommit,
+        author: editAuthor,
+        affectedRuns: editAffected,
+      });
+
+      // Update the active fix state
+      setActiveFix(updatedFix);
+      setIsEditing(false);
+
+      // Refresh list to show updated fixes/badges
+      await fetchPage(currentPage);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to update fix");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const toggleEditAffectedRun = (runId: number) => {
+    if (editAffected.includes(runId)) {
+      setEditAffected(editAffected.filter((id) => id !== runId));
+    } else {
+      setEditAffected([...editAffected, runId]);
+    }
+  };
+
+  // Get all unique failed runs we can choose from during editing
+  const pageFailedRuns = runs.filter(isFailedRun);
+  const allAvailableFailedRuns = [...pageFailedRuns];
+  for (const id of editAffected) {
+    if (!allAvailableFailedRuns.some((r) => r.id === id)) {
+      allAvailableFailedRuns.push({
+        id,
+        status: "failed",
+        started_at: "",
+        completed_at: null,
+        total_repos: 0,
+        successful: 0,
+        failed: 1,
+        skipped: 0,
+        duration_ms: 0,
+        error_message: "",
+      });
+    }
+  }
+  allAvailableFailedRuns.sort((a, b) => b.id - a.id);
 
   return (
     <>
@@ -316,15 +397,17 @@ export default function BackupsClient({ initialData }: BackupsClientProps) {
         )}
       </div>
 
-      {/* ── Modal dialog: View Fix Details ───────────────────────────── */}
+      {/* ── Modal dialog: View / Edit Fix Details ───────────────────────────── */}
       {activeFix && (
-        <div className="modal-overlay" onClick={() => setActiveFix(null)}>
+        <div className="modal-overlay" onClick={() => { setActiveFix(null); setIsEditing(false); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--text)" }}>Resolution Details</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--text)" }}>
+                {isEditing ? "Edit Resolution Details" : "Resolution Details"}
+              </h3>
               <button
                 type="button"
-                onClick={() => setActiveFix(null)}
+                onClick={() => { setActiveFix(null); setIsEditing(false); }}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -337,91 +420,237 @@ export default function BackupsClient({ initialData }: BackupsClientProps) {
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div>
-                <label style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Title</label>
-                <div style={{ fontSize: 16, fontWeight: 500, color: "#10b981", marginTop: 4 }}>
-                  {activeFix.title}
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Description</label>
-                <p style={{ fontSize: 14.5, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-                  {activeFix.description || "No description provided."}
-                </p>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            {isEditing ? (
+              <form onSubmit={handleEditFixSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div>
-                  <label style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Commit Hash</label>
-                  <div style={{ fontSize: 14, fontFamily: "monospace", color: "var(--text)", marginTop: 4 }}>
-                    {activeFix.commit_hash ? (
-                      <span style={{ background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: 4 }}>
-                        {activeFix.commit_hash}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
+                  <label
+                    htmlFor="edit-fix-title"
+                    style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600, display: "block", marginBottom: 6 }}
+                  >
+                    Title <span style={{ color: "var(--danger)" }}>*</span>
+                  </label>
+                  <input
+                    id="edit-fix-title"
+                    type="text"
+                    className="input"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="edit-fix-desc"
+                    style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600, display: "block", marginBottom: 6 }}
+                  >
+                    Description
+                  </label>
+                  <textarea
+                    id="edit-fix-desc"
+                    className="textarea"
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div>
+                    <label
+                      htmlFor="edit-fix-commit"
+                      style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600, display: "block", marginBottom: 6 }}
+                    >
+                      Commit Hash
+                    </label>
+                    <input
+                      id="edit-fix-commit"
+                      type="text"
+                      className="input"
+                      value={editCommit}
+                      onChange={(e) => setEditCommit(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="edit-fix-author"
+                      style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600, display: "block", marginBottom: 6 }}
+                    >
+                      Author
+                    </label>
+                    <input
+                      id="edit-fix-author"
+                      type="text"
+                      className="input"
+                      value={editAuthor}
+                      onChange={(e) => setEditAuthor(e.target.value)}
+                    />
                   </div>
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Author</label>
-                  <div style={{ fontSize: 14.5, color: "var(--text)", marginTop: 4 }}>
-                    {activeFix.author || "—"}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                <div>
-                  <label style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Created At</label>
-                  <div style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
-                    {formatDate(activeFix.created_at)}
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Affected Runs</label>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                    {activeFix.affected_runs && activeFix.affected_runs.length > 0 ? (
-                      activeFix.affected_runs.map((runId) => (
-                        <Link
-                          key={runId}
-                          href={`/backups/${runId}`}
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            background: "rgba(139, 92, 246, 0.1)",
-                            color: "var(--accent)",
-                            padding: "2px 6px",
-                            borderRadius: 4,
-                            textDecoration: "none",
-                            border: "1px solid rgba(139, 92, 246, 0.2)",
-                          }}
-                        >
-                          #{runId}
-                        </Link>
+                  <label style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600, display: "block", marginBottom: 8 }}>
+                    Select Affected Failed Runs
+                  </label>
+                  <div
+                    style={{
+                      maxHeight: 120,
+                      overflowY: "auto",
+                      background: "rgba(0,0,0,0.15)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "8px 12px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                    }}
+                  >
+                    {allAvailableFailedRuns.length > 0 ? (
+                      allAvailableFailedRuns.map((run) => (
+                        <label key={run.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, cursor: "pointer" }}>
+                          <input
+                            type="checkbox"
+                            checked={editAffected.includes(run.id)}
+                            onChange={() => toggleEditAffectedRun(run.id)}
+                          />
+                          <span>
+                            Run #{run.id} {run.started_at ? `(${formatDate(run.started_at)})` : "(Linked Run)"}
+                          </span>
+                        </label>
                       ))
                     ) : (
-                      <span style={{ fontSize: 13, color: "var(--text-muted)" }}>None linked</span>
+                      <div style={{ fontSize: 12.5, color: "var(--text-muted)", padding: "4px 0" }}>
+                        No failed runs available to select.
+                      </div>
                     )}
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
-              <button
-                type="button"
-                onClick={() => setActiveFix(null)}
-                className="btn btn-outline"
-                style={{ padding: "8px 16px", fontSize: 14 }}
-              >
-                Close
-              </button>
-            </div>
+                {submitError && (
+                  <div style={{ color: "var(--danger)", fontSize: 14, fontWeight: 500 }}>
+                    ⚠️ {submitError}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 12 }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="btn btn-outline"
+                    style={{ padding: "10px 18px", fontSize: 14 }}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{ padding: "10px 18px", fontSize: 14 }}
+                    disabled={submitting}
+                  >
+                    {submitting ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div>
+                    <label style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Title</label>
+                    <div style={{ fontSize: 16, fontWeight: 500, color: "#10b981", marginTop: 4 }}>
+                      {activeFix.title}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Description</label>
+                    <p style={{ fontSize: 14.5, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                      {activeFix.description || "No description provided."}
+                    </p>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    <div>
+                      <label style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Commit Hash</label>
+                      <div style={{ fontSize: 14, fontFamily: "monospace", color: "var(--text)", marginTop: 4 }}>
+                        {activeFix.commit_hash ? (
+                          <span style={{ background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: 4 }}>
+                            {activeFix.commit_hash}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Author</label>
+                      <div style={{ fontSize: 14.5, color: "var(--text)", marginTop: 4 }}>
+                        {activeFix.author || "—"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    <div>
+                      <label style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Created At</label>
+                      <div style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
+                        {formatDate(activeFix.created_at)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: 12, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600 }}>Affected Runs</label>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                        {activeFix.affected_runs && activeFix.affected_runs.length > 0 ? (
+                          activeFix.affected_runs.map((runId) => (
+                            <Link
+                              key={runId}
+                              href={`/backups/${runId}`}
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 600,
+                                background: "rgba(139, 92, 246, 0.1)",
+                                color: "var(--accent)",
+                                padding: "2px 6px",
+                                borderRadius: 4,
+                                textDecoration: "none",
+                                border: "1px solid rgba(139, 92, 246, 0.2)",
+                              }}
+                            >
+                              #{runId}
+                            </Link>
+                          ))
+                        ) : (
+                          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>None linked</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+                  {hasToken && (
+                    <button
+                      type="button"
+                      onClick={startEditing}
+                      className="btn btn-outline"
+                      style={{ padding: "8px 16px", fontSize: 14, borderColor: "rgba(139, 92, 246, 0.4)", color: "var(--accent)" }}
+                    >
+                      Edit Fix
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setActiveFix(null)}
+                    className="btn btn-outline"
+                    style={{ padding: "8px 16px", fontSize: 14 }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

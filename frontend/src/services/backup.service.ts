@@ -44,6 +44,32 @@ export const backupService = {
     });
   },
 
+  updateFix: (id: number, data: {
+    title?: string;
+    description?: string;
+    commitHash?: string;
+    author?: string;
+    affectedRuns?: number[];
+  }) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("agent_token") : null;
+    const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL || "http://localhost:8000";
+
+    return fetch(`${AGENT_URL}/backup-fixes/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(error.detail || res.statusText);
+      }
+      return res.json() as Promise<BackupFix>;
+    });
+  },
+
   getRunFixes: (id: number) =>
     fetchAPI<BackupFix[]>(`/api/backup-runs/${id}/fixes`),
 };

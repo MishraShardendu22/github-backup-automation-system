@@ -7,7 +7,14 @@ from .analytics import (
     fetch_latest_analytics_snapshot,
 )
 from .repository import list_tracked_repositories
-from .backup import fetch_dashboard_statistics, list_backup_runs, fetch_latest_backup_run, fetch_backup_run_details
+from .backup import (
+    fetch_dashboard_statistics,
+    list_backup_runs,
+    fetch_latest_backup_run,
+    fetch_backup_run_details,
+    list_backup_fixes,
+    fetch_backup_fix_details,
+)
 
 __all__ = [
     "fetch_backup_metrics",
@@ -18,6 +25,8 @@ __all__ = [
     "list_backup_runs",
     "fetch_latest_backup_run",
     "fetch_backup_run_details",
+    "list_backup_fixes",
+    "fetch_backup_fix_details",
     "list_execution_logs",
     "list_tracked_repositories",
     "send_report_email",

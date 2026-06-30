@@ -9,42 +9,46 @@ active_responses: dict[str, bool] = {}
 
 from data.tools import (
     list_backup_runs,
+    send_report_email,
+    list_backup_fixes,
     list_execution_logs,
     fetch_backup_metrics,
     fetch_latest_backup_run,
     fetch_analytics_for_run,
+    fetch_backup_fix_details,
     fetch_backup_run_details,
     list_historical_analytics,
     list_tracked_repositories,
     fetch_dashboard_statistics,
     fetch_latest_analytics_snapshot,
-    send_report_email,
 )
 from langchain_core.messages import (
+    AIMessage,
     ToolMessage,
     HumanMessage,
     SystemMessage,
-    AIMessage,
 )
 from config import settings
 from utils.logging import logger
-from .prompts import SYSTEM_PROMPT
 from typing import AsyncIterator
+from .prompts import SYSTEM_PROMPT
 from langchain_openrouter import ChatOpenRouter
 from .state import AgentResponse, ToolExecution, create_request_id, safe_serialize_payload
 
 TOOLS = [
     list_backup_runs,
+    send_report_email,
+    list_backup_fixes,
     list_execution_logs,
     fetch_backup_metrics,
     fetch_latest_backup_run,
     fetch_analytics_for_run,
+    fetch_backup_fix_details,
     fetch_backup_run_details,
     list_historical_analytics,
     list_tracked_repositories,
     fetch_dashboard_statistics,
     fetch_latest_analytics_snapshot,
-    send_report_email,
 ]
 
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}

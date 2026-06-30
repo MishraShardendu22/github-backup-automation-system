@@ -65,3 +65,33 @@ async def fetch_backup_run_details(
     - "Fetch the specific backup run diagnostics."
     """
     return await client.get_backup_details(backup_id)
+
+
+@tool
+async def list_backup_fixes() -> list[dict[str, Any]]:
+    """List all resolutions/fixes registered in the system.
+
+    Use when requesting a list of all fixes, solutions, or resolution history.
+    Examples:
+    - "What fixes have been created in the system?"
+    - "Show the resolutions list."
+    - "List all backup fixes."
+    - "Retrieve a list of all resolution actions."
+    """
+    return await client.list_backup_fixes()
+
+
+@tool
+async def fetch_backup_fix_details(
+    fix_id: Annotated[int, "Fix/resolution identifier"],
+) -> dict[str, Any]:
+    """Fetch details of a specific resolution/fix by its identifier.
+
+    Use when asking about a particular fix, its description, author, commit hash, or affected runs.
+    Examples:
+    - "Get details for fix number 3."
+    - "Show the resolution description for fix 5."
+    - "What runs were affected by fix 2?"
+    - "Who authored fix 1?"
+    """
+    return await client.get_backup_fix_details(fix_id)

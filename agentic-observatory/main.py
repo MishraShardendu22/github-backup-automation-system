@@ -451,3 +451,118 @@ async def create_backup_fix(
             )
 
 
+class UpdateFixRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    commitHash: str | None = None
+    author: str | None = None
+    affectedRuns: list[int] | None = None
+
+
+@app.put("/backup-fixes/{fix_id}")
+async def update_backup_fix(
+    fix_id: int,
+    request: UpdateFixRequest,
+    current_user: str = Depends(get_current_user),
+):
+    if not async_session:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database session factory is not configured."
+        )
+
+    async with async_session() as session:
+        try:
+            # Check if fix exists
+            fix_check = await session.execute(
+                text("SELECT id, title, description, commit_hash, author FROM backup_fixes WHERE id = :fix_id"),
+                {"fix_id": fix_id}
+            )
+            fix_row = fix_check.fetchone()
+            if not fix_row:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Fix not found"
+                )
+
+            # Build UPDATE fields dynamic or check values
+            title = request.title if request.title is not None else fix_row[1]
+            description = request.description if request.description is not None else fix_row[2]
+            commit_hash = request.commitHash if request.commitHash is not None else fix_row[3]
+            author = request.author if request.author is not None else fix_row[4]
+
+            # Update backup_fixes table
+            update_query = text(
+                """
+                UPDATE backup_fixes
+                SET title = :title, description = :description, commit_hash = :commit_hash, author = :author, updated_at = NOW()
+                WHERE id = :fix_id
+                """
+            )
+            await session.execute(
+                update_query,
+                {
+                    "fix_id": fix_id,
+                    "title": title,
+                    "description": description,
+                    "commit_hash": commit_hash,
+                    "author": author,
+                }
+            )
+
+            # Update mapping rows in backup_run_fixes if affectedRuns is provided
+            if request.affectedRuns is not None:
+                # 1. Delete existing mappings for this fix
+                await session.execute(
+                    text("DELETE FROM backup_run_fixes WHERE fix_id = :fix_id"),
+                    {"fix_id": fix_id}
+                )
+
+                # 2. Insert new mappings
+                for run_id in request.affectedRuns:
+                    # Verify run exists first
+                    run_exists = await session.execute(
+                        text("SELECT id FROM backup_runs WHERE id = :run_id"),
+                        {"run_id": run_id}
+                    )
+                    if not run_exists.scalar():
+                        continue  # skip non-existent runs
+                    
+                    await session.execute(
+                        text(
+                            """
+                            INSERT INTO backup_run_fixes (run_id, fix_id)
+                            VALUES (:run_id, :fix_id)
+                            ON CONFLICT DO NOTHING
+                            """
+                        ),
+                        {"run_id": run_id, "fix_id": fix_id}
+                    )
+
+            await session.commit()
+
+            # Retrieve final affected runs
+            affected_runs_result = await session.execute(
+                text("SELECT run_id FROM backup_run_fixes WHERE fix_id = :fix_id"),
+                {"fix_id": fix_id}
+            )
+            affected_runs = [r[0] for r in affected_runs_result.fetchall()]
+
+            return {
+                "id": fix_id,
+                "title": title,
+                "description": description,
+                "commit_hash": commit_hash,
+                "author": author,
+                "affected_runs": affected_runs,
+            }
+        except HTTPException:
+            raise
+        except Exception as exc:
+            await session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database transaction failed: {str(exc)}"
+            )
+
+
