@@ -464,6 +464,7 @@ def main() -> None:
     parser.add_argument("--reconcile-all", action="store_true", help="Run cold-boot sweep across all registered repos")
     parser.add_argument("--repo-dir", default=None, help="Explicit repository path fallback")
     parser.add_argument("--no-reconcile", action="store_true", help="Skip startup cold-boot reconciliation")
+    parser.add_argument("--poll-interval", type=int, default=0, help="Periodic reconciliation interval in seconds (default: 0 = disabled, sweeps handled by 24h timer)")
     parser.add_argument("--dry-run", action="store_true", help="Simulate actions without deleting files")
     args = parser.parse_args()
 
@@ -499,13 +500,14 @@ def main() -> None:
     MultiRepoWebhookHandler.fallback_dir = args.repo_dir or current_git_root
     MultiRepoWebhookHandler.dry_run = args.dry_run
 
-    # Start background periodic reconciliation worker thread (every 30 seconds)
-    recon_thread = threading.Thread(
-        target=background_reconciliation_worker,
-        args=(30, args.dry_run),
-        daemon=True,
-    )
-    recon_thread.start()
+    # Start background periodic reconciliation worker thread only if requested
+    if args.poll_interval > 0:
+        recon_thread = threading.Thread(
+            target=background_reconciliation_worker,
+            args=(args.poll_interval, args.dry_run),
+            daemon=True,
+        )
+        recon_thread.start()
 
     server = http.server.ThreadingHTTPServer((args.host, args.port), MultiRepoWebhookHandler)
     logger.info("Multi-Repository Git Webhook Daemon listening on http://%s:%d/events", args.host, args.port)
