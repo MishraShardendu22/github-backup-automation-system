@@ -23,66 +23,72 @@ GENERIC_PROHIBITED_TERMS = getattr(validate_module, "GENERIC_PROHIBITED_TERMS")
 class TestSkillsScopeTaxonomy(unittest.TestCase):
     def setUp(self):
         self.skills_dir = REPO_ROOT / ".agents" / "skills"
-        self.all_skills = [
-            p for p in self.skills_dir.iterdir()
-            if p.is_dir() and not p.name.startswith(".")
-        ]
+        self.all_skill_paths = []
+        for p in self.skills_dir.iterdir():
+            if p.is_dir() and not p.name.startswith("."):
+                sub_mds = [f for f in p.glob("*.md") if not f.name.startswith("CAREERCAFE_DESIGN_SYSTEM") and not f.name.startswith("README")]
+                if len(sub_mds) > 1:
+                    self.all_skill_paths.extend(sub_mds)
+                else:
+                    self.all_skill_paths.append(p)
         self.generic_skills = []
         self.codebase_skills = []
-        for p in self.all_skills:
-            s_md = p / "SKILL.md"
+        for path in self.all_skill_paths:
+            s_md = path if path.is_file() else path / "SKILL.md"
             if s_md.is_file():
                 fm, _ = parse_frontmatter(s_md.read_text(encoding="utf-8"))
                 if fm.get("scope", "generic") == "generic":
-                    self.generic_skills.append(p)
+                    self.generic_skills.append(path)
                 else:
-                    self.codebase_skills.append((p, fm.get("scope")))
+                    self.codebase_skills.append((path, fm.get("scope")))
 
     def test_generic_skills_all_have_generic_scope(self):
         """Verify that every generic skill in .agents/skills has scope: generic."""
         self.assertEqual(len(self.generic_skills), 25, f"Expected exactly 25 generic skills, found {len(self.generic_skills)}")
-        for skill_dir in self.generic_skills:
-            skill_md = skill_dir / "SKILL.md"
-            self.assertTrue(skill_md.is_file(), f"Missing SKILL.md in {skill_dir.name}")
+        for skill_path in self.generic_skills:
+            skill_md = skill_path if skill_path.is_file() else skill_path / "SKILL.md"
+            self.assertTrue(skill_md.is_file(), f"Missing SKILL.md in {skill_path.name}")
             fm, _ = parse_frontmatter(skill_md.read_text(encoding="utf-8"))
             self.assertEqual(
                 fm.get("scope"),
                 "generic",
-                f"Skill '{skill_dir.name}' must have 'scope: generic' in frontmatter",
+                f"Skill '{skill_path.name}' must have 'scope: generic' in frontmatter",
             )
 
     def test_generic_skills_zero_codebase_leaks(self):
         """Verify that generic skills contain no prohibited codebase-specific leakage terms."""
-        for skill_dir in self.generic_skills:
-            if skill_dir.name == "skill-taxonomy-and-scope-governance":
+        for skill_path in self.generic_skills:
+            if skill_path.name == "skill-taxonomy-and-scope-governance":
                 continue
-            content = (skill_dir / "SKILL.md").read_text(encoding="utf-8").lower()
+            skill_md = skill_path if skill_path.is_file() else skill_path / "SKILL.md"
+            content = skill_md.read_text(encoding="utf-8").lower()
             for term in GENERIC_PROHIBITED_TERMS:
                 self.assertNotIn(
                     term.lower(),
                     content,
-                    f"Generic skill '{skill_dir.name}' contains forbidden term: '{term}'",
+                    f"Generic skill '{skill_path.name}' contains forbidden term: '{term}'",
                 )
 
     def test_codebase_skills_have_valid_codebase_scope(self):
         """Verify that codebase skills have scope starting with codebase-."""
         self.assertGreater(len(self.codebase_skills), 0, "Expected at least one codebase-specific skill")
-        for skill_dir, scope in self.codebase_skills:
+        for skill_path, scope in self.codebase_skills:
             self.assertTrue(
                 scope.startswith("codebase-"),
-                f"Skill '{skill_dir.name}' scope '{scope}' must start with 'codebase-'",
+                f"Skill '{skill_path.name}' scope '{scope}' must start with 'codebase-'",
             )
 
     def test_codebase_skills_contain_disclaimer(self):
         """Verify that every codebase-specific skill contains an explicit disclaimer in its body."""
-        for skill_dir, _ in self.codebase_skills:
-            content = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+        for skill_path, _ in self.codebase_skills:
+            skill_md = skill_path if skill_path.is_file() else skill_path / "SKILL.md"
+            content = skill_md.read_text(encoding="utf-8")
             has_disclaimer = (
                 "CODEBASE-SPECIFIC" in content or "PROJECT-SPECIFIC" in content
             )
             self.assertTrue(
                 has_disclaimer,
-                f"Codebase skill '{skill_dir.name}' must contain a CODEBASE-SPECIFIC or PROJECT-SPECIFIC alert block",
+                f"Codebase skill '{skill_path.name}' must contain a CODEBASE-SPECIFIC or PROJECT-SPECIFIC alert block",
             )
 
     def test_cross_contamination_detected_by_validator(self):
