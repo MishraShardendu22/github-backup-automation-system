@@ -67,6 +67,7 @@ ${BOLD}COMMANDS:${NC}
     ${CYAN}list${NC}                  List all skills installed locally with their descriptions
     ${CYAN}validate${NC}              Lint and validate SKILL.md frontmatter across all skills
     ${CYAN}wt <action>${NC}           Ephemeral worktree lifecycle (new, stack, pr, sweep, list)
+    ${CYAN}daemon <action>${NC}       Manage local webhook daemon & weekly timer (setup, status, sweep, repos)
     ${CYAN}install${NC}               Install 'skills-sync' to ~/.local/bin for global CLI access
     ${CYAN}help, -h, --help${NC}      Show this help message
     ${CYAN}version, -v${NC}           Show version information
@@ -512,6 +513,80 @@ cmd_wt() {
     esac
 }
 
+# Daemon & Weekly Timer Management
+cmd_daemon() {
+    local action="${1:-}"
+    shift || true
+
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    case "$action" in
+        setup|install)
+            if [[ -f "$script_dir/setup-service.sh" ]]; then
+                bash "$script_dir/setup-service.sh"
+            else
+                log_error "setup-service.sh not found."
+                return 1
+            fi
+            ;;
+        status)
+            echo -e "\n${BOLD}Webhook Daemon Service Status:${NC}"
+            systemctl --user status git-webhook-daemon.service --no-pager || true
+            echo -e "\n${BOLD}Weekly Cleanup Timer Status:${NC}"
+            systemctl --user status git-worktree-sweep.timer --no-pager || true
+            ;;
+        sweep)
+            if command -v git-webhook-daemon >/dev/null 2>&1; then
+                git-webhook-daemon --reconcile-all
+            elif [[ -f "$script_dir/git-webhook-daemon.py" ]]; then
+                python3 "$script_dir/git-webhook-daemon.py" --reconcile-all
+            else
+                log_error "git-webhook-daemon not found."
+                return 1
+            fi
+            ;;
+        register)
+            local target_dir="${1:-$PWD}"
+            if command -v git-webhook-daemon >/dev/null 2>&1; then
+                git-webhook-daemon --register "$target_dir"
+            elif [[ -f "$script_dir/git-webhook-daemon.py" ]]; then
+                python3 "$script_dir/git-webhook-daemon.py" --register "$target_dir"
+            fi
+            ;;
+        list|repos)
+            if command -v git-webhook-daemon >/dev/null 2>&1; then
+                git-webhook-daemon --list-repos
+            elif [[ -f "$script_dir/git-webhook-daemon.py" ]]; then
+                python3 "$script_dir/git-webhook-daemon.py" --list-repos
+            fi
+            ;;
+        start)
+            systemctl --user start git-webhook-daemon.service
+            log_success "Started git-webhook-daemon.service."
+            ;;
+        stop)
+            systemctl --user stop git-webhook-daemon.service
+            log_success "Stopped git-webhook-daemon.service."
+            ;;
+        restart)
+            systemctl --user restart git-webhook-daemon.service
+            log_success "Restarted git-webhook-daemon.service."
+            ;;
+        *)
+            echo -e "${BOLD}Usage:${NC} skills-sync daemon <action>"
+            echo "  setup      Install service & weekly timer into systemd --user (zero sudo)"
+            echo "  status     Check systemd status of daemon and weekly timer"
+            echo "  sweep      Run reconciliation sweep across all registered repos"
+            echo "  register   Register current or specified directory in machine registry"
+            echo "  repos      List all registered repositories on this machine"
+            echo "  start      Start systemd daemon service"
+            echo "  stop       Stop systemd daemon service"
+            echo "  restart    Restart systemd daemon service"
+            ;;
+    esac
+}
+
 # Main Command Switch
 case "${1:-}" in
     pull)
@@ -537,6 +612,10 @@ case "${1:-}" in
     wt|worktree)
         shift
         cmd_wt "$@"
+        ;;
+    daemon)
+        shift
+        cmd_daemon "$@"
         ;;
     install)
         cmd_install

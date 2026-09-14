@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly Git Worktree Sweep & Pruning Timer
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

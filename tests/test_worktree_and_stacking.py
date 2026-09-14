@@ -163,6 +163,36 @@ class TestWorktreeAndStackingLifecycle(unittest.TestCase):
             parent_branch = f.read().strip()
         self.assertEqual(parent_branch, "layer-1")
 
+    def test_multi_repo_lookup_and_registration(self):
+        """Verify that multi-repo lookup accurately matches webhook event payloads to local paths."""
+        mock_registry = {
+            "test-owner/test-repo": self.repo_dir,
+            "test-repo": self.repo_dir,
+        }
+        # Monkey patch load_registry for test isolation
+        orig_load = daemon_mod.load_registry
+        daemon_mod.load_registry = lambda: mock_registry
+
+        try:
+            event_data = {
+                "repository": {
+                    "full_name": "test-owner/test-repo",
+                    "name": "test-repo",
+                }
+            }
+            matched_path = daemon_mod.find_local_repo_for_event(event_data)
+            self.assertEqual(matched_path, self.repo_dir)
+
+            unmatched_event = {
+                "repository": {
+                    "full_name": "other-owner/other-repo",
+                    "name": "other-repo",
+                }
+            }
+            self.assertIsNone(daemon_mod.find_local_repo_for_event(unmatched_event))
+        finally:
+            daemon_mod.load_registry = orig_load
+
 
 if __name__ == "__main__":
     unittest.main()
