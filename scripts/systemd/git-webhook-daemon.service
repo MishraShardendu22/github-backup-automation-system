@@ -1,10 +1,10 @@
 [Unit]
-Description=Git Local Webhook & Worktree Cleanup Daemon
+Description=Git Multi-Repository Webhook & Worktree Cleanup Daemon
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 %h/.local/bin/git-webhook-daemon.py
+ExecStart=/usr/bin/python3 %h/.local/bin/git-webhook-daemon
 Restart=always
 RestartSec=5
 StandardOutput=journal

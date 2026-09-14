@@ -1,0 +1,9 @@
+[Unit]
+Description=Git Worktree Reconciliation Sweep Service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/.local/bin/git-webhook-daemon --reconcile-all
+StandardOutput=journal
+StandardError=journal
