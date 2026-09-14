@@ -18,6 +18,8 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -192,12 +194,46 @@ def is_worktree_dirty(wt_path: str) -> bool:
 
 def clean_worktree_and_branch(repo_dir: str, branch: str, dry_run: bool = False) -> bool:
     """
-    Safely remove the worktree and delete the local branch for a merged PR.
-    Guarantees that dirty worktrees are NEVER pruned.
+    Safely remove the worktree, delete the local branch, and delete the remote branch on GitHub.
+    Guarantees that dirty worktrees/branches are NEVER pruned.
     """
-    logger.info("[%s] Processing cleanup for merged branch: %s", os.path.basename(repo_dir), branch)
-    worktrees = get_active_worktrees(repo_dir)
+    if branch in ("main", "master", "develop"):
+        logger.warning("[%s] Branch '%s' is protected. Skipping deletion.", os.path.basename(repo_dir), branch)
+        return False
 
+    logger.info("[%s] Processing cleanup for closed/merged branch: %s", os.path.basename(repo_dir), branch)
+
+    # 1. Check if the branch is currently checked out in the primary repo root
+    code, current_branch, _ = run_cmd(["git", "branch", "--show-current"], cwd=repo_dir)
+    if code == 0 and current_branch.strip() == branch:
+        if is_worktree_dirty(repo_dir):
+            logger.warning(
+                "[SAFETY LOCK] Primary repo root at %s is on branch '%s' and has uncommitted changes! Refusing to auto-delete.",
+                repo_dir,
+                branch,
+            )
+            send_notification(
+                "Branch Protected",
+                f"Branch '{branch}' was closed, but repo root contains uncommitted changes. Kept on disk.",
+            )
+            return False
+
+        default_branch = "main"
+        code, d_out, _ = run_cmd(["git", "branch", "--list", "main", "master"], cwd=repo_dir)
+        if "main" in d_out:
+            default_branch = "main"
+        elif "master" in d_out:
+            default_branch = "master"
+
+        logger.info("[%s] Primary repo root is currently on '%s'. Switching to '%s' before cleanup.", os.path.basename(repo_dir), branch, default_branch)
+        if not dry_run:
+            code, _, err = run_cmd(["git", "checkout", default_branch], cwd=repo_dir)
+            if code != 0:
+                logger.error("[%s] Failed to switch to %s: %s", os.path.basename(repo_dir), default_branch, err)
+                return False
+
+    # 2. Check if a dedicated worktree exists for this branch
+    worktrees = get_active_worktrees(repo_dir)
     matching_wt: Optional[Dict[str, str]] = None
     for wt in worktrees:
         if wt.get("branch") == branch:
@@ -206,9 +242,7 @@ def clean_worktree_and_branch(repo_dir: str, branch: str, dry_run: bool = False)
 
     if matching_wt:
         wt_path = matching_wt.get("path", "")
-        if os.path.abspath(wt_path) == os.path.abspath(repo_dir):
-            logger.warning("[%s] Worktree path is repo root (%s). Skipping worktree removal.", os.path.basename(repo_dir), wt_path)
-        else:
+        if os.path.abspath(wt_path) != os.path.abspath(repo_dir):
             if is_worktree_dirty(wt_path):
                 logger.warning(
                     "[SAFETY LOCK] Worktree at %s has uncommitted changes! Refusing to auto-delete.",
@@ -216,7 +250,7 @@ def clean_worktree_and_branch(repo_dir: str, branch: str, dry_run: bool = False)
                 )
                 send_notification(
                     "Worktree Protected",
-                    f"Branch '{branch}' was merged, but '{wt_path}' contains uncommitted changes. Kept on disk.",
+                    f"Branch '{branch}' was closed, but '{wt_path}' contains uncommitted changes. Kept on disk.",
                 )
                 return False
 
@@ -229,24 +263,40 @@ def clean_worktree_and_branch(repo_dir: str, branch: str, dry_run: bool = False)
                 run_cmd(["git", "worktree", "prune"], cwd=repo_dir)
                 logger.info("Successfully pruned worktree: %s", wt_path)
 
+    # 3. Delete the local branch
     code, branches, _ = run_cmd(["git", "branch", "--list", branch], cwd=repo_dir)
     if code == 0 and branch in branches:
         logger.info("[%s] Deleting local branch: %s", os.path.basename(repo_dir), branch)
         if not dry_run:
             code, _, err = run_cmd(["git", "branch", "-D", branch], cwd=repo_dir)
             if code != 0:
-                logger.error("Failed to delete branch %s: %s", branch, err)
+                logger.error("Failed to delete local branch %s: %s", branch, err)
                 return False
             logger.info("Successfully deleted local branch: %s", branch)
 
-    send_notification("PR Cleanup Complete", f"Worktree and branch '{branch}' successfully pruned.")
+    # 4. Delete the remote branch on GitHub (if it still exists on origin)
+    code, rem_heads, _ = run_cmd(["git", "ls-remote", "--heads", "origin", branch], cwd=repo_dir)
+    if code == 0 and branch in rem_heads:
+        logger.info("[%s] Deleting remote branch on GitHub: origin/%s", os.path.basename(repo_dir), branch)
+        if not dry_run:
+            code, _, err = run_cmd(["git", "push", "origin", "--delete", branch], cwd=repo_dir)
+            if code == 0:
+                logger.info("[%s] Successfully deleted remote branch on GitHub: %s", os.path.basename(repo_dir), branch)
+            else:
+                logger.warning("[%s] Could not delete remote branch %s on GitHub: %s", os.path.basename(repo_dir), branch, err)
+
+    # 5. Prune remote tracking references
+    if not dry_run:
+        run_cmd(["git", "fetch", "--prune", "origin"], cwd=repo_dir)
+
+    send_notification("PR Cleanup Complete", f"Worktree and branch '{branch}' successfully pruned locally and from GitHub.")
     return True
 
 
 def reconcile_cold_boot(repo_dir: str, dry_run: bool = False) -> int:
     """
-    Cold-Boot Catch-Up Reconciliation:
-    Queries GitHub CLI for recently merged or closed PRs and prunes any active local worktrees.
+    Cold-Boot & Periodic Reconciliation:
+    Queries GitHub CLI for recently merged or closed PRs and prunes active local worktrees and branches.
     """
     if not shutil.which("gh"):
         return 0
@@ -264,17 +314,24 @@ def reconcile_cold_boot(repo_dir: str, dry_run: bool = False) -> int:
     except Exception:
         return 0
 
-    worktrees = get_active_worktrees(repo_dir)
-    pruned_count = 0
+    # Prune remote tracking first
+    run_cmd(["git", "fetch", "--prune", "origin"], cwd=repo_dir)
 
-    for wt in worktrees:
-        branch = wt.get("branch")
-        if branch and branch in closed_branches:
-            wt_path = wt.get("path", "")
-            if os.path.abspath(wt_path) != os.path.abspath(repo_dir):
-                logger.info("[%s] Reconciliation: Found closed/merged worktree for branch '%s' at '%s'", os.path.basename(repo_dir), branch, wt_path)
-                if clean_worktree_and_branch(repo_dir, branch, dry_run=dry_run):
-                    pruned_count += 1
+    # Discover candidate branches: all local branches + active worktrees
+    code, out, _ = run_cmd(["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/"], cwd=repo_dir)
+    local_branches = {b.strip() for b in out.splitlines() if b.strip()}
+
+    worktrees = get_active_worktrees(repo_dir)
+    wt_branches = {wt.get("branch") for wt in worktrees if wt.get("branch")}
+
+    candidate_branches = (local_branches | wt_branches) & closed_branches
+    candidate_branches -= {"main", "master", "develop", "HEAD"}
+
+    pruned_count = 0
+    for branch in candidate_branches:
+        logger.info("[%s] Reconciliation: Found closed/merged PR for branch '%s'. Cleaning up...", os.path.basename(repo_dir), branch)
+        if clean_worktree_and_branch(repo_dir, branch, dry_run=dry_run):
+            pruned_count += 1
 
     return pruned_count
 
@@ -293,6 +350,17 @@ def reconcile_all_registered(dry_run: bool = False) -> int:
 
     logger.info("Reconciliation sweep complete. Pruned %d total stale worktree(s).", total_pruned)
     return total_pruned
+
+
+def background_reconciliation_worker(interval_seconds: int = 30, dry_run: bool = False) -> None:
+    """Periodically check all registered repositories for closed/merged PRs in the background."""
+    logger.info("Background periodic reconciliation thread started (interval: %ds).", interval_seconds)
+    while True:
+        try:
+            time.sleep(interval_seconds)
+            reconcile_all_registered(dry_run=dry_run)
+        except Exception as exc:
+            logger.error("Error in background periodic reconciliation: %s", exc)
 
 
 class MultiRepoWebhookHandler(http.server.BaseHTTPRequestHandler):
@@ -430,6 +498,14 @@ def main() -> None:
 
     MultiRepoWebhookHandler.fallback_dir = args.repo_dir or current_git_root
     MultiRepoWebhookHandler.dry_run = args.dry_run
+
+    # Start background periodic reconciliation worker thread (every 30 seconds)
+    recon_thread = threading.Thread(
+        target=background_reconciliation_worker,
+        args=(30, args.dry_run),
+        daemon=True,
+    )
+    recon_thread.start()
 
     server = http.server.ThreadingHTTPServer((args.host, args.port), MultiRepoWebhookHandler)
     logger.info("Multi-Repository Git Webhook Daemon listening on http://%s:%d/events", args.host, args.port)
