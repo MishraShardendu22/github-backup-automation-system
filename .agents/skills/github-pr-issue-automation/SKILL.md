@@ -1,5 +1,6 @@
 ---
 name: github-pr-issue-automation
+scope: generic
 description: >-
   Standard operating procedures for automated PR/issue creation, auto-assignment, conventional label categorization,
   and professional GitHub markdown standards for AI agents and human contributors.

@@ -1,5 +1,6 @@
 ---
 name: ci-cd-workflow
+scope: generic
 description: >-
   Rules, architectures, and guidelines for maintaining GitHub Actions CI/CD workflows,
   Docker Hub image publishing, and automated deployments.

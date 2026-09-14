@@ -1,5 +1,6 @@
 ---
 name: code-quality-and-validation
+scope: generic
 description: >-
   Standards, tools, and commands for code formatting, linting, and static type checking
   across Go, Python, and TypeScript.

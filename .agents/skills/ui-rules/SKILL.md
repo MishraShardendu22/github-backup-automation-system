@@ -1,5 +1,6 @@
 ---
 name: ui-rules
+scope: generic
 description: Strict frontend engineering and visual design invariants: bans hover levitation/translate-y, eliminates AI aesthetic bloat, and enforces grounded design tokens.
 ---
 

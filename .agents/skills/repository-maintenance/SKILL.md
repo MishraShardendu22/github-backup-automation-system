@@ -1,5 +1,6 @@
 ---
 name: repository-maintenance
+scope: generic
 description: >-
   Procedures for database schema integrity, idempotent migrations, backup/restore execution,
   and dependency maintenance.

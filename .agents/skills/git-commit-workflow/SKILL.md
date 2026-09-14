@@ -1,5 +1,6 @@
 ---
 name: git-commit-workflow
+scope: generic
 description: >-
   High-priority rules, message formats, commit design taxonomy, and strict permission boundaries for creating frequent local Git commits.
   Enforces that AI agents and human contributors create granular, explanatory, categorized commits at each important milestone.

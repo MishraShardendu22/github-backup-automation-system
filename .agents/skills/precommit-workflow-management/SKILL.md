@@ -1,5 +1,6 @@
 ---
 name: precommit-workflow-management
+scope: generic
 description: >-
   Rules, architecture, and runbooks for configuring, updating, and operating the intelligent Git pre-commit workflow.
 ---

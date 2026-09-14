@@ -1,5 +1,6 @@
 ---
 name: polyglot-microservice-architecture
+scope: generic
 description: >-
   Architectural patterns, service boundaries, communication protocols, database schema guidelines,
   and deployment targets for polyglot systems (Next.js frontend, Python AI service, Go backend/worker, PostgreSQL).

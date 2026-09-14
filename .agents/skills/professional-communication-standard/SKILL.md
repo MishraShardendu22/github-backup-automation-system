@@ -1,5 +1,6 @@
 ---
 name: professional-communication-standard
+scope: generic
 description: >-
   Enforces strictly emoji-free, concise, objective, and technically rigorous communication standards across all AI agent interactions, prohibiting decorative emojis, conversational filler, and informal preambles.
 ---

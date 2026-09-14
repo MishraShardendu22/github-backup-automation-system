@@ -1,5 +1,6 @@
 ---
 name: modern-toolchain-standard
+scope: generic
 description: >-
   Standard operating specification for modern developer toolchains across all repositories:
   mandatory pnpm over npm/yarn, mandatory uv over bare pip/venv, Biome formatting/linting,

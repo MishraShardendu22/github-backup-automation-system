@@ -288,6 +288,7 @@ cmd_new() {
 name: ${skill_name}
 description: >-
   Standard operating procedure and workflow guidelines for ${skill_name}.
+scope: generic
 ---
 
 # ${skill_name^} Skill

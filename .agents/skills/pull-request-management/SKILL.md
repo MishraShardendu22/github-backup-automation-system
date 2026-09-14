@@ -1,5 +1,6 @@
 ---
 name: pull-request-management
+scope: generic
 description: >-
   Rules and runbooks for creating and managing GitHub Pull Requests when explicitly requested by the user.
   Enforces that all PRs must target 'main' only and are never created automatically.

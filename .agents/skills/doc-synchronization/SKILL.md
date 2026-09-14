@@ -1,5 +1,6 @@
 ---
 name: doc-synchronization
+scope: generic
 description: >-
   High-priority rules and automated procedures for continuously keeping repository documentation, API references,
   architecture guides, changelogs, and agent skills synchronized with code changes autonomously without requiring human reminders.

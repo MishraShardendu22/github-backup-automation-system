@@ -1,5 +1,6 @@
 ---
 name: cli-tooling-guide
+scope: generic
 description: >-
   Standard operating guide for first-class authenticated CLI tools in the repository:
   GitHub CLI (gh), Google Jules CLI (jules), Vercel CLI (vercel), Neon CLI (neonctl), Docker CLI (docker), uv, and pnpm.

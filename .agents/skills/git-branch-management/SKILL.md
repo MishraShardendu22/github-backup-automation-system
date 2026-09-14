@@ -1,5 +1,6 @@
 ---
 name: git-branch-management
+scope: generic
 description: >-
   Rules and procedures for creating, naming, structuring, and navigating Git branches
   in the repository for both human contributors and AI agents.

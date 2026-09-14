@@ -1,5 +1,6 @@
 ---
 name: git-post-merge-cleanup
+scope: generic
 description: >-
   Rules, safety constraints, and automated procedures for post-merge local Git cleanup,
   synchronizing main with GitHub, deleting stale local branches, and performing deep

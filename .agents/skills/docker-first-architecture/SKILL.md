@@ -1,5 +1,6 @@
 ---
 name: docker-first-architecture
+scope: generic
 description: >-
   Rules, architectures, multi-stage Dockerfile blueprints, and container-first workflows for all microservices, frontends, and backends targeting container registries, AWS ECS/EKS, and self-hosting.
 ---

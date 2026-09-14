@@ -1,5 +1,6 @@
 ---
 name: codebase-simplification-guide
+scope: generic
 description: >-
   Rules and principles for keeping this codebase clean, minimal, maintainable, and free of unnecessary abstractions.
 ---

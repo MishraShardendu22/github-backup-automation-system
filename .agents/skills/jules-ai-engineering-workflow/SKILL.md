@@ -1,5 +1,6 @@
 ---
 name: jules-ai-engineering-workflow
+scope: generic
 description: >-
   Standard operating procedures for the autonomous Jules AI engineering review-improve-converge loop,
   evaluating code across 38 architectural dimensions and preparing merge-ready PRs for the human Technical Lead.

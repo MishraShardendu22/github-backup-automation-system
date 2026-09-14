@@ -1,5 +1,6 @@
 ---
 name: agent-observatory-workflow
+scope: generic
 description: >-
   Step-by-step instructions for building and extending Python AI agent services: adding LangChain/LiteLLM tools,
   Tool-Calling RAG workflows, enforcing Human-in-the-Loop approvals, multi-key model failover, and pgvector embeddings.

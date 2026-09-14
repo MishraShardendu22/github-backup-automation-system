@@ -1,5 +1,6 @@
 ---
 name: saas-and-mcp-architecture
+scope: generic
 description: >-
   Architectural patterns and implementation guidelines for SaaS connector hubs,
   pluggable multi-cloud storage engines, and Model Context Protocol (MCP) tool integrations.

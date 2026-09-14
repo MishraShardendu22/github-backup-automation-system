@@ -1,5 +1,6 @@
 ---
 name: test-creation-and-execution
+scope: generic
 description: >-
   Rules, patterns, and runbooks for writing and running unit, integration, and AI agent test suites
   across Go, Python, and TypeScript frontends.
