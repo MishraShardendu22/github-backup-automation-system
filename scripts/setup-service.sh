@@ -24,7 +24,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo -e "\n${BOLD}======================================================================${NC}"
-echo -e "${BOLD}  Git Webhook Daemon & Weekly Timer Setup (Multi-Machine Portable)${NC}"
+echo -e "${BOLD}  Git Webhook Daemon & Daily 24-Hour Timer Setup (Multi-Machine Portable)${NC}"
 echo -e "${BOLD}======================================================================${NC}\n"
 
 # 1. Verify systemd --user availability
@@ -49,7 +49,7 @@ cp "$SCRIPT_DIR/skills-sync.sh" "$BIN_DIR/skills-sync"
 chmod +x "$BIN_DIR/skills-sync"
 log_success "Binaries installed successfully."
 
-# 3. Install systemd user service and weekly timer
+# 3. Install systemd user service and daily 24-hour timer
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 mkdir -p "$SYSTEMD_USER_DIR"
 
@@ -65,7 +65,7 @@ systemctl --user daemon-reload
 log_info "Enabling and starting git-webhook-daemon.service..."
 systemctl --user enable --now git-webhook-daemon.service
 
-log_info "Enabling and starting weekly git-worktree-sweep.timer..."
+log_info "Enabling and starting 24-hour git-worktree-sweep.timer..."
 systemctl --user enable --now git-worktree-sweep.timer
 
 # 5. Register current repository
@@ -81,14 +81,14 @@ else
 fi
 
 if systemctl --user is-active --quiet git-worktree-sweep.timer; then
-    log_success "git-worktree-sweep.timer is ${BOLD}ACTIVE${NC} (scheduled weekly)."
+    log_success "git-worktree-sweep.timer is ${BOLD}ACTIVE${NC} (scheduled every 24 hours)."
 else
     log_warn "git-worktree-sweep.timer status: $(systemctl --user is-active git-worktree-sweep.timer 2>&1 || true)"
 fi
 
 echo -e "\n${BOLD}Setup Complete!${NC}"
 echo -e "  • Webhook Endpoint:  ${BLUE}http://127.0.0.1:9876/events${NC}"
-echo -e "  • Weekly Timer:      ${BLUE}Active (every week, persistent on boot)${NC}"
+echo -e "  • 24-Hour Timer:     ${BLUE}Active (every 24 hours, persistent on boot)${NC}"
 echo -e "  • Multi-Repo Registry: ${BLUE}~/.config/git-webhook-daemon/repos.json${NC}"
 echo -e "  • Service Logs:      ${BLUE}journalctl --user -u git-webhook-daemon -f${NC}"
 echo -e "  • Relay Webhooks:    ${BLUE}gh webhook forward --repo=<owner>/<repo> --events=pull_request --url=http://127.0.0.1:9876/events${NC}\n"

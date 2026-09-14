@@ -1,8 +1,8 @@
 [Unit]
-Description=Weekly Git Worktree Sweep & Pruning Timer
+Description=Daily Git Worktree & Branch Sweep Timer (Every 24 Hours)
 
 [Timer]
-OnCalendar=weekly
+OnCalendar=daily
 Persistent=true
 RandomizedDelaySec=300
 

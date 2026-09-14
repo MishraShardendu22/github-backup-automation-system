@@ -533,7 +533,7 @@ cmd_daemon() {
         status)
             echo -e "\n${BOLD}Webhook Daemon Service Status:${NC}"
             systemctl --user status git-webhook-daemon.service --no-pager || true
-            echo -e "\n${BOLD}Weekly Cleanup Timer Status:${NC}"
+            echo -e "\n${BOLD}Daily 24-Hour Cleanup Timer Status:${NC}"
             systemctl --user status git-worktree-sweep.timer --no-pager || true
             ;;
         sweep)
@@ -580,7 +580,7 @@ cmd_daemon() {
             ;;
         *)
             echo -e "${BOLD}Usage:${NC} skills-sync daemon <action>"
-            echo "  setup      Install service & weekly timer into systemd --user (zero sudo)"
+            echo "  setup      Install service & daily 24h timer into systemd --user (zero sudo)"
             echo "  status     Check systemd status of daemon and weekly timer"
             echo "  sweep      Run reconciliation sweep across all registered repos"
             echo "  register   Register current or specified directory in machine registry"
