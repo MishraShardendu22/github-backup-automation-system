@@ -181,7 +181,13 @@ def is_worktree_dirty(wt_path: str) -> bool:
     if not os.path.exists(wt_path):
         return False
     code, out, _ = run_cmd(["git", "status", "--porcelain"], cwd=wt_path)
-    return code == 0 and len(out) > 0
+    if code != 0:
+        return True
+    lines = [
+        line for line in out.splitlines()
+        if line.strip() and not line.endswith(".wt-parent")
+    ]
+    return len(lines) > 0
 
 
 def clean_worktree_and_branch(repo_dir: str, branch: str, dry_run: bool = False) -> bool:
@@ -240,13 +246,13 @@ def clean_worktree_and_branch(repo_dir: str, branch: str, dry_run: bool = False)
 def reconcile_cold_boot(repo_dir: str, dry_run: bool = False) -> int:
     """
     Cold-Boot Catch-Up Reconciliation:
-    Queries GitHub CLI for recently merged PRs and prunes any active local worktrees.
+    Queries GitHub CLI for recently merged or closed PRs and prunes any active local worktrees.
     """
     if not shutil.which("gh"):
         return 0
 
     code, out, err = run_cmd(
-        ["gh", "pr", "list", "--state", "merged", "--limit", "50", "--json", "headRefName"],
+        ["gh", "pr", "list", "--state", "closed", "--limit", "50", "--json", "headRefName"],
         cwd=repo_dir,
     )
     if code != 0:
@@ -254,7 +260,7 @@ def reconcile_cold_boot(repo_dir: str, dry_run: bool = False) -> int:
 
     try:
         data = json.loads(out)
-        merged_branches = {item["headRefName"] for item in data if "headRefName" in item}
+        closed_branches = {item["headRefName"] for item in data if "headRefName" in item}
     except Exception:
         return 0
 
@@ -263,10 +269,10 @@ def reconcile_cold_boot(repo_dir: str, dry_run: bool = False) -> int:
 
     for wt in worktrees:
         branch = wt.get("branch")
-        if branch and branch in merged_branches:
+        if branch and branch in closed_branches:
             wt_path = wt.get("path", "")
             if os.path.abspath(wt_path) != os.path.abspath(repo_dir):
-                logger.info("[%s] Reconciliation: Found merged worktree for branch '%s' at '%s'", os.path.basename(repo_dir), branch, wt_path)
+                logger.info("[%s] Reconciliation: Found closed/merged worktree for branch '%s' at '%s'", os.path.basename(repo_dir), branch, wt_path)
                 if clean_worktree_and_branch(repo_dir, branch, dry_run=dry_run):
                     pruned_count += 1
 
@@ -346,11 +352,13 @@ class MultiRepoWebhookHandler(http.server.BaseHTTPRequestHandler):
 
                 logger.info("Matched PR #%s event to local repository '%s': merged=%s, head=%s", pr_number, target_repo, merged, head_ref)
 
-                if merged and head_ref:
+                if head_ref:
+                    status_desc = "merged" if merged else "closed without merge"
+                    logger.info("[%s] PR #%s was %s. Triggering worktree and branch cleanup for '%s'.", os.path.basename(target_repo), pr_number, status_desc, head_ref)
                     cleaned = clean_worktree_and_branch(target_repo, head_ref, dry_run=self.dry_run)
-                    res_body = {"status": "processed", "cleaned": cleaned, "branch": head_ref, "repo": target_repo}
+                    res_body = {"status": "processed", "cleaned": cleaned, "branch": head_ref, "repo": target_repo, "merged": merged}
                 else:
-                    res_body = {"status": "ignored", "reason": "PR closed but not merged"}
+                    res_body = {"status": "ignored", "reason": "Missing head ref in PR payload"}
 
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")

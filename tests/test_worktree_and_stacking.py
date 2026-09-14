@@ -74,6 +74,28 @@ class TestWorktreeAndStackingLifecycle(unittest.TestCase):
         }
         self.assertFalse(unmerged_payload["pull_request"]["merged"])
 
+    def test_closed_unmerged_pr_triggers_cleanup(self):
+        """Verify that closing an unmerged PR triggers worktree and branch removal."""
+        wt_path = os.path.join(self.test_dir, "wt-feature-closed")
+        branch_name = "feature-closed"
+
+        subprocess.run(
+            ["git", "worktree", "add", "-b", branch_name, wt_path, "main"],
+            cwd=self.repo_dir,
+            check=True,
+            capture_output=True,
+        )
+        self.assertTrue(os.path.exists(wt_path))
+
+        # Cleanup should succeed even though branch has not been merged into main
+        deleted = daemon_mod.clean_worktree_and_branch(self.repo_dir, branch_name)
+        self.assertTrue(deleted, "Expected closed unmerged PR worktree to be cleaned up")
+        self.assertFalse(os.path.exists(wt_path))
+
+        # Branch should also be deleted
+        code, out, _ = daemon_mod.run_cmd(["git", "branch", "--list", branch_name], cwd=self.repo_dir)
+        self.assertNotIn(branch_name, out)
+
     def test_dirty_worktree_safety_lock(self):
         """Assert that clean_worktree_and_branch NEVER deletes a worktree containing uncommitted edits."""
         wt_path = os.path.join(self.test_dir, "wt-feature-dirty")
