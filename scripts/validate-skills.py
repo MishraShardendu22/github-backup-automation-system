@@ -134,15 +134,30 @@ def main():
         
     all_errors = []
     
-    # 1. Validate Generic Master Catalog
-    generic_folders = [p for p in target_dir.iterdir() if p.is_dir() and not p.name.startswith(".")]
-    if not generic_folders:
+    # 1. Discover all skills in .agents/skills
+    skill_folders = [p for p in target_dir.iterdir() if p.is_dir() and not p.name.startswith(".")]
+    if not skill_folders:
         print("[ERROR] No skills found in", target_dir)
         sys.exit(1)
-        
-    print(f"[INFO] Validating {len(generic_folders)} generic skills in {target_dir.relative_to(repo_root)} (scope: generic)...\n")
+
+    generic_skills = []
+    codebase_skills = []
+
+    for p in sorted(skill_folders):
+        s_md = p / "SKILL.md"
+        if s_md.is_file():
+            fm, _ = parse_frontmatter(s_md.read_text(encoding="utf-8"))
+            if fm.get("scope", "generic") == "generic":
+                generic_skills.append(p)
+            else:
+                codebase_skills.append((p, fm.get("scope")))
+        else:
+            generic_skills.append(p)
+
+    # Validate Generic Skills
+    print(f"[INFO] Validating {len(generic_skills)} generic skills in {target_dir.relative_to(repo_root)} (scope: generic)...\n")
     generic_valid = 0
-    for skill_path in sorted(generic_folders):
+    for skill_path in generic_skills:
         errors = validate_skill(skill_path, expected_scope="generic")
         if errors:
             all_errors.extend(errors)
@@ -152,37 +167,44 @@ def main():
         else:
             generic_valid += 1
             print(f"  [PASS] {skill_path.name}")
-            
-    print(f"\nGeneric Skills Summary: {generic_valid}/{len(generic_folders)} valid.\n")
 
-    # 2. Validate Codebase-Specific Directories
-    codebase_dirs = [p for p in repo_root.iterdir() if p.is_dir() and not p.is_symlink() and p.name.startswith("codebase-")]
-    codebase_total = 0
+    print(f"\nGeneric Skills Summary: {generic_valid}/{len(generic_skills)} valid.\n")
+
+    # Validate Codebase Skills inside .agents/skills
     codebase_valid = 0
+    if codebase_skills:
+        print(f"[INFO] Validating {len(codebase_skills)} codebase-specific skills in {target_dir.relative_to(repo_root)}...")
+        for skill_path, scope in codebase_skills:
+            errors = validate_skill(skill_path, expected_scope=scope)
+            if errors:
+                all_errors.extend(errors)
+                print(f"  [FAIL] {skill_path.name} (scope: {scope}): {len(errors)} error(s)")
+                for err in errors:
+                    print(f"         - {err}")
+            else:
+                codebase_valid += 1
+                print(f"  [PASS] {skill_path.name} (scope: {scope})")
+        print(f"\nCodebase Skills Summary: {codebase_valid}/{len(codebase_skills)} valid.\n")
 
-    if codebase_dirs:
-        print(f"[INFO] Discovered {len(codebase_dirs)} codebase-specific directory suite(s)...")
-        for cb_dir in sorted(codebase_dirs):
+    # Optional: Backwards compatibility check for any legacy root-level codebase-* directories
+    legacy_codebase_dirs = [p for p in repo_root.iterdir() if p.is_dir() and not p.is_symlink() and p.name.startswith("codebase-")]
+    legacy_total = 0
+    legacy_valid = 0
+    if legacy_codebase_dirs:
+        print(f"[INFO] Discovered {len(legacy_codebase_dirs)} legacy root codebase directory suite(s)...")
+        for cb_dir in sorted(legacy_codebase_dirs):
             cb_name = cb_dir.name
             skills = [p for p in cb_dir.iterdir() if p.is_dir() and (p / "SKILL.md").is_file()]
-            print(f"\n  [SUITE] {cb_name} ({len(skills)} skills, expected scope: {cb_name})")
             for skill_path in sorted(skills):
-                codebase_total += 1
+                legacy_total += 1
                 errors = validate_skill(skill_path, expected_scope=cb_name)
                 if errors:
                     all_errors.extend(errors)
-                    print(f"    [FAIL] {skill_path.name}: {len(errors)} error(s)")
-                    for err in errors:
-                        print(f"           - {err}")
                 else:
-                    codebase_valid += 1
-                    print(f"    [PASS] {skill_path.name}")
+                    legacy_valid += 1
 
-        print(f"\nCodebase Skills Summary: {codebase_valid}/{codebase_total} valid.")
-
-    print("\n" + "=" * 60)
-    total_validated = len(generic_folders) + codebase_total
-    total_valid = generic_valid + codebase_valid
+    total_validated = len(generic_skills) + len(codebase_skills) + legacy_total
+    total_valid = generic_valid + codebase_valid + legacy_valid
     print(f"Total Validation Summary: {total_valid}/{total_validated} skills valid across all scopes.")
     
     if all_errors:
