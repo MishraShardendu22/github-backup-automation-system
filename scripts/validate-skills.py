@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+"""
+Skill Validator Script for agent-skills
+Validates YAML frontmatter, naming conventions, scope taxonomy (generic vs codebase-{name}),
+and structural integrity for all SKILL.md files across the repository.
+"""
+
+import sys
+import re
+from pathlib import Path
+
+# Prohibited codebase leakage terms that must NEVER appear in generic skills
+GENERIC_PROHIBITED_TERMS = [
+    "github-backup",
+    "curiotech",
+    "careercafe",
+    "/home/ms22",
+    "shardendumishra",
+]
+
+def parse_frontmatter(content: str) -> tuple[dict, str]:
+    """Parse YAML frontmatter delimited by ---."""
+    if not content.startswith("---"):
+        return {}, content
+    
+    parts = content.split("---", 2)
+    if len(parts) < 3:
+        return {}, content
+    
+    raw_frontmatter = parts[1]
+    body = parts[2]
+    
+    data = {}
+    lines = raw_frontmatter.strip().split("\n")
+    current_key = None
+    multiline_val = []
+    
+    for line in lines:
+        if ":" in line and not line.startswith(" ") and not line.startswith("\t"):
+            if current_key and multiline_val:
+                data[current_key] = " ".join(multiline_val).strip()
+                multiline_val = []
+            
+            key, val = line.split(":", 1)
+            current_key = key.strip()
+            val = val.strip()
+            if val in (">", ">-", "|", "|-"):
+                multiline_val = []
+            elif val:
+                data[current_key] = val.strip("\"'")
+                current_key = None
+        elif current_key:
+            multiline_val.append(line.strip().strip("\"'"))
+    
+    if current_key and multiline_val:
+        data[current_key] = " ".join(multiline_val).strip()
+        
+    return data, body
+
+def validate_skill(skill_path: Path, expected_scope: str = None) -> list[str]:
+    """Validate an individual skill directory and SKILL.md file with scope enforcement."""
+    errors = []
+    skill_md = skill_path / "SKILL.md"
+    
+    if not skill_md.is_file():
+        return [f"Missing SKILL.md in {skill_path.name}"]
+    
+    content = skill_md.read_text(encoding="utf-8")
+    frontmatter, body = parse_frontmatter(content)
+    
+    if not frontmatter:
+        errors.append(f"{skill_path.name}/SKILL.md: Missing or malformed YAML frontmatter ('---')")
+        return errors
+    
+    name = frontmatter.get("name")
+    if not name:
+        errors.append(f"{skill_path.name}/SKILL.md: Missing 'name' field in frontmatter")
+    elif name != skill_path.name:
+        errors.append(f"{skill_path.name}/SKILL.md: Name '{name}' does not match directory name '{skill_path.name}'")
+        
+    description = frontmatter.get("description")
+    if not description:
+        errors.append(f"{skill_path.name}/SKILL.md: Missing 'description' field in frontmatter")
+    elif len(description.strip()) < 15:
+        errors.append(f"{skill_path.name}/SKILL.md: Description is too short (< 15 characters)")
+        
+    if not body.strip():
+        errors.append(f"{skill_path.name}/SKILL.md: Body content is empty")
+        
+    if not re.search(r"^#\s+.+", body, re.MULTILINE):
+        errors.append(f"{skill_path.name}/SKILL.md: Missing top-level Markdown heading (# Title)")
+
+    # Scope field validation
+    scope = frontmatter.get("scope")
+    if not scope:
+        errors.append(f"{skill_path.name}/SKILL.md: Missing 'scope' field (must be 'generic' or 'codebase-<name>')")
+    else:
+        if expected_scope:
+            if scope != expected_scope:
+                errors.append(f"{skill_path.name}/SKILL.md: Scope '{scope}' does not match expected '{expected_scope}'")
+        elif not (scope == "generic" or scope.startswith("codebase-")):
+            errors.append(f"{skill_path.name}/SKILL.md: Invalid scope '{scope}'. Must be 'generic' or start with 'codebase-'")
+
+    # Generic scope isolation check: zero codebase leakage terms allowed
+    if scope == "generic":
+        for term in GENERIC_PROHIBITED_TERMS:
+            # Check body and description case-insensitively, except if in governance definition
+            if skill_path.name != "skill-taxonomy-and-scope-governance":
+                if term.lower() in content.lower():
+                    errors.append(f"{skill_path.name}/SKILL.md: Forbidden codebase-specific term '{term}' found in generic skill")
+    elif scope and scope.startswith("codebase-"):
+        # Codebase skills must have an explicit scope disclaimer in markdown body
+        if not re.search(r"CODEBASE-SPECIFIC|PROJECT-SPECIFIC", body, re.IGNORECASE):
+            errors.append(f"{skill_path.name}/SKILL.md: Codebase skill must include an explicit '[!IMPORTANT]' disclaimer declaring its codebase scope")
+        
+    return errors
+
+def main():
+    repo_root = Path(__file__).resolve().parent.parent
+    skills_dirs = [
+        repo_root / ".agents" / "skills",
+        repo_root / "skills",
+    ]
+    
+    target_dir = None
+    for d in skills_dirs:
+        if d.is_dir() and not d.is_symlink():
+            target_dir = d
+            break
+            
+    if not target_dir:
+        print("[ERROR] Could not locate skills directory (.agents/skills)")
+        sys.exit(1)
+        
+    all_errors = []
+    
+    # 1. Validate Generic Master Catalog
+    generic_folders = [p for p in target_dir.iterdir() if p.is_dir() and not p.name.startswith(".")]
+    if not generic_folders:
+        print("[ERROR] No skills found in", target_dir)
+        sys.exit(1)
+        
+    print(f"[INFO] Validating {len(generic_folders)} generic skills in {target_dir.relative_to(repo_root)} (scope: generic)...\n")
+    generic_valid = 0
+    for skill_path in sorted(generic_folders):
+        errors = validate_skill(skill_path, expected_scope="generic")
+        if errors:
+            all_errors.extend(errors)
+            print(f"  [FAIL] {skill_path.name}: {len(errors)} error(s)")
+            for err in errors:
+                print(f"         - {err}")
+        else:
+            generic_valid += 1
+            print(f"  [PASS] {skill_path.name}")
+            
+    print(f"\nGeneric Skills Summary: {generic_valid}/{len(generic_folders)} valid.\n")
+
+    # 2. Validate Codebase-Specific Directories
+    codebase_dirs = [p for p in repo_root.iterdir() if p.is_dir() and not p.is_symlink() and p.name.startswith("codebase-")]
+    codebase_total = 0
+    codebase_valid = 0
+
+    if codebase_dirs:
+        print(f"[INFO] Discovered {len(codebase_dirs)} codebase-specific directory suite(s)...")
+        for cb_dir in sorted(codebase_dirs):
+            cb_name = cb_dir.name
+            skills = [p for p in cb_dir.iterdir() if p.is_dir() and (p / "SKILL.md").is_file()]
+            print(f"\n  [SUITE] {cb_name} ({len(skills)} skills, expected scope: {cb_name})")
+            for skill_path in sorted(skills):
+                codebase_total += 1
+                errors = validate_skill(skill_path, expected_scope=cb_name)
+                if errors:
+                    all_errors.extend(errors)
+                    print(f"    [FAIL] {skill_path.name}: {len(errors)} error(s)")
+                    for err in errors:
+                        print(f"           - {err}")
+                else:
+                    codebase_valid += 1
+                    print(f"    [PASS] {skill_path.name}")
+
+        print(f"\nCodebase Skills Summary: {codebase_valid}/{codebase_total} valid.")
+
+    print("\n" + "=" * 60)
+    total_validated = len(generic_folders) + codebase_total
+    total_valid = generic_valid + codebase_valid
+    print(f"Total Validation Summary: {total_valid}/{total_validated} skills valid across all scopes.")
+    
+    if all_errors:
+        print(f"\n[ERROR] Validation failed with {len(all_errors)} error(s).")
+        sys.exit(1)
+    else:
+        print("\n[SUCCESS] All skills passed validation across all scopes.")
+        sys.exit(0)
+
+if __name__ == "__main__":
+    main()

@@ -19,7 +19,7 @@ This directory provides specialized operational skills and procedural runbooks f
 | **Pull Request Management** | [`skills/pull-request-management/`](skills/pull-request-management/SKILL.md) | Guidelines and runbooks for creating PRs to `main` upon explicit user request. |
 | **Observatory Architecture** | [`skills/agent-observatory-workflow/`](skills/agent-observatory-workflow/SKILL.md) | Python AI Observatory, LangChain tools, pgvector embeddings, and OpenRouter multi-key failover. |
 | **Codebase Simplification** | [`skills/codebase-simplification-guide/`](skills/codebase-simplification-guide/SKILL.md) | Principles for keeping code minimal, maintainable, and free of unnecessary abstractions. |
-| **System Architecture** | [`skills/github-backup-architecture/`](skills/github-backup-architecture/SKILL.md) | End-to-end architecture, database schema, and cross-service communication. |
+| **System Architecture** | [`skills/polyglot-microservice-architecture/`](skills/polyglot-microservice-architecture/SKILL.md) | Service boundaries, communication protocols, database schema, and deployment targets. |
 
 ---
 
