@@ -18,7 +18,7 @@ A distributed backup automation and AI-driven telemetry observatory. The system 
 - **Pre-Commit Gate**: [docs/PRECOMMIT_WORKFLOW.md](docs/PRECOMMIT_WORKFLOW.md)
 - **Video Walkthrough**: [YouTube Demonstration](https://www.youtube.com/watch?v=be0UBwk2asc)
 
----d
+---
 
 ## Architecture & Zero-Touch Deployment Model
 
