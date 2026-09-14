@@ -7,14 +7,16 @@ description: >-
 
 # Code Quality & Validation Standards
 
-This skill defines the multi-tier code quality, formatting, linting, and type checking standards across the **GitHub Backup Automation System** monorepo.
+This skill defines the multi-tier code quality, formatting, linting, and type checking standards across polyglot repositories.
 
-## 1. Branch-First Development
+---
+
+## 1. Local Branch-First Development
 
 > [!IMPORTANT]
-> **CREATE A LOCAL BRANCH FIRST**: Always start by creating a local branch from `main`:
+> **CREATE A LOCAL BRANCH FIRST**: Always start by creating a dedicated local branch from `main`:
 > ```bash
-> git switch -c MishraShardendu22/main/<feature-name>
+> git switch -c <developer-or-agent>/main/<feature-name>
 > ```
 > Never develop code or run refactors directly on `main`.
 
@@ -25,32 +27,32 @@ This skill defines the multi-tier code quality, formatting, linting, and type ch
 | Language | Subsystem | Formatter | Linter | Static Type Checker |
 | :--- | :--- | :--- | :--- | :--- |
 | **Go** | Backend & CLI | `gofmt` | `go vet ./...` | Go Compiler (`go build ./...`) |
-| **Python** | Agentic Observatory | Ruff / Black compatible | Ruff check / Pyright | Pyright (`uv run --with pyright pyright`) |
-| **TypeScript** | Next.js Frontend | Biome (`pnpm run format`) | Biome (`biome check`) | TypeScript Compiler (`tsc --noEmit`) |
+| **Python** | AI & Services | Ruff / Black compatible | Ruff check / Pyright | Pyright (`uv run --with pyright pyright`) |
+| **TypeScript** | Frontend & Web | Biome (`pnpm run format`) | Biome (`biome check`) | TypeScript Compiler (`tsc --noEmit`) |
 
 ---
 
-## 2. Code Quality Rules
+## 3. Code Quality Rules
 
 ### 1. Go Guidelines
-* Always format code using standard `gofmt` before committing.
-* Zero compiler warnings or `go vet` issues allowed.
-* Prefer structured logging via `util.Logger()` in CLI and `logger.Log` (`slog`) in `backend/`.
-* Clean up goroutines and database connection handles using `defer`.
+- Always format code using standard `gofmt` before committing.
+- Zero compiler warnings or `go vet` issues allowed.
+- Prefer structured logging via standard library `slog`.
+- Clean up goroutines and database connection handles using `defer`.
 
-### 2. Python Observatory Guidelines
-* Python 3.12+ type annotations required on all function arguments, return types, and Pydantic models.
-* Zero errors in Pyright type checking (`agentic-observatory/pyrightconfig.json`).
-* Ensure all async functions and SQLAlchemy sessions are properly awaited and closed.
+### 2. Python Service Guidelines
+- Python 3.12+ type annotations required on all function arguments, return types, and Pydantic models.
+- Zero errors in Pyright type checking (`pyrightconfig.json`).
+- Ensure all async functions and database sessions are properly awaited and closed.
 
 ### 3. Frontend TypeScript Guidelines
-* Strict TypeScript checks with zero `any` types wherever possible.
-* Use Biome for combined linting and code formatting (`frontend/package.json`).
-* Ensure components render cleanly in Next.js Turbopack production builds.
+- Strict TypeScript checks with zero `any` types wherever possible.
+- Use Biome for combined linting and code formatting (`package.json`).
+- Ensure components render cleanly in production builds.
 
 ---
 
-## 3. Developer CLI Runbook
+## 4. Developer CLI Runbook
 
 ```bash
 # Auto-format all Go and TypeScript files

@@ -7,7 +7,7 @@ description: >-
 
 # Git Branch Management Skill
 
-This skill guides AI agents and human contributors on how to create, name, structure, and navigate Git branches in the **GitHub Backup Automation System** repository.
+This skill guides AI agents and human contributors on how to create, name, structure, and navigate Git branches cleanly and safely across repositories.
 
 ---
 
@@ -19,9 +19,9 @@ This skill guides AI agents and human contributors on how to create, name, struc
 4. **Structured Hierarchical Naming**: Branch names follow the standard format `<github-username>/<parent-branch>/<feature>`.
 5. **All Pull Requests Target `main`**: `main` is the sole production integration branch. Never open PRs against `dev` or temporary feature branches.
 6. **Agent Safety Boundaries**:
-   * Agents may create or switch between local branches directly.
-   * **STRICT RULE**: Agents MUST NOT push branches to a remote repository automatically. Pushing and opening PRs is permitted ONLY upon explicit human request.
-   * **STRICT RULE**: Agents MUST NEVER force-push (`git push --force`) or delete remote branches.
+   - Agents may create or switch between local branches directly.
+   - **STRICT RULE**: Agents MUST NOT push branches to a remote repository automatically. Pushing and opening PRs is permitted ONLY upon explicit human request.
+   - **STRICT RULE**: Agents MUST NEVER force-push (`git push --force`) or delete remote branches.
 
 ---
 
@@ -34,15 +34,15 @@ All development branches MUST follow the standard structure:
 ```
 
 ### Components Breakdown
-* `<github-username>`: GitHub username of the author (e.g. `MishraShardendu22`).
-* `<parent-branch>`: Target base branch name (typically `main`).
-* `<feature>`: Concise, kebab-case description of the feature or fix (e.g. `database-auto-sync`, `precommit-workflow`, `branch-first-migration`).
+- `<github-username>`: GitHub username of the author.
+- `<parent-branch>`: Target base branch name (typically `main`).
+- `<feature>`: Concise, kebab-case description of the feature or fix (e.g. `database-auto-sync`, `precommit-workflow`, `branch-first-migration`).
 
 ### Rules
-* **Lowercase**: All characters lowercase.
-* **Kebab-Case**: Hyphen-separated words for the feature portion.
-* **Concise**: 2–4 descriptive words.
-* **No Timestamps/Hashes**: Avoid timestamps or random suffixes unless required for uniqueness.
+- **Lowercase**: All characters lowercase.
+- **Kebab-Case**: Hyphen-separated words for the feature portion.
+- **Concise**: 2-4 descriptive words.
+- **No Timestamps/Hashes**: Avoid timestamps or random suffixes unless required for uniqueness.
 
 ---
 
@@ -55,7 +55,7 @@ git checkout main
 git pull origin main
 
 # 2. Create and switch to new branch
-git switch -c MishraShardendu22/main/my-feature
+git switch -c <github-username>/main/my-feature
 
 # 3. Develop, validate, and commit
 make pre-commit
@@ -63,8 +63,8 @@ git add .
 git commit -s -S -m "feat(worker): add new capability"
 
 # 4. Push and open PR
-git push -u origin MishraShardendu22/main/my-feature
-gh pr create --base main --head MishraShardendu22/main/my-feature --title "feat(worker): add new capability" --body "..."
+git push -u origin <github-username>/main/my-feature
+gh pr create --base main --head <github-username>/main/my-feature --title "feat(worker): add new capability" --body "..."
 ```
 
 ### For AI Agents
@@ -82,7 +82,7 @@ gh pr create --base main --head MishraShardendu22/main/my-feature --title "feat(
    ```bash
    git switch -c <github-username>/<parent-branch>/<feature>
    ```
-4. Develop directly on that branch, run `make pre-commit`, and commit locally with `-s` and `-S`.
+4. Develop directly on that branch, run pre-commit validations, and commit locally with `-s` and `-S`.
 5. When explicitly requested by the user, push to remote and open a PR targeting `main`.
 
 ---
@@ -90,20 +90,16 @@ gh pr create --base main --head MishraShardendu22/main/my-feature --title "feat(
 ## 4. Single Open PR Mandate & Preventing Merge Conflicts
 
 To ensure continuous delivery without merge conflict deadlock:
-* **Mandatory Pre-Branch Check**: Always run `gh pr list --state open` before creating a new branch.
-* **Consolidate into Existing Open PR**: If an open PR already exists targeting `main`, DO NOT create a new branch or open a secondary PR. Check out the existing PR's branch (`git checkout <open-branch>`), implement all requested changes there, and push to that same branch.
-* **Open New PR Only on Clean State**: Create a new feature branch and open a new PR ONLY when zero open PRs exist.
-* **Rebasing**: If `main` is updated while a PR is open, rebase your branch on `origin/main` (`git fetch origin && git rebase origin/main`), re-verify with `make pre-commit`, and push with `--force-with-lease`.
+- **Mandatory Pre-Branch Check**: Always run `gh pr list --state open` before creating a new branch.
+- **Consolidate into Existing Open PR**: If an open PR already exists targeting `main`, DO NOT create a new branch or open a secondary PR. Check out the existing PR's branch (`git checkout <open-branch>`), implement all requested changes there, and push to that same branch.
+- **Open New PR Only on Clean State**: Create a new feature branch and open a new PR ONLY when zero open PRs exist.
+- **Rebasing**: If `main` is updated while a PR is open, rebase your branch on `origin/main` (`git fetch origin && git rebase origin/main`), re-verify with pre-commit gates, and push with `--force-with-lease`.
 
 ---
 
 ## 5. Merging & Local Branch Cleanup
 
-1. Once a Pull Request is merged into `main` on GitHub and upon explicit human user instruction, perform safe branch cleanup and repository garbage collection:
-   ```bash
-   make git-clean
-   ```
-   Or manual sequence:
+1. Once a Pull Request is merged into `main` on GitHub and upon explicit human user instruction, perform safe branch cleanup:
    ```bash
    git switch main
    git pull origin main
@@ -113,5 +109,4 @@ To ensure continuous delivery without merge conflict deadlock:
    git gc --prune=now --aggressive
    ```
 2. **Explicit Instruction Only**: AI agents must only execute branch cleanup when explicitly asked by the user after PR merge.
-3. See [`.agents/skills/git-post-merge-cleanup/SKILL.md`](../git-post-merge-cleanup/SKILL.md).
-
+3. See `.agents/skills/git-post-merge-cleanup/SKILL.md`.

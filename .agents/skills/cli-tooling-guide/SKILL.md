@@ -17,12 +17,12 @@ This repository treats specialized developer CLI tools as first-class automation
 |---|---|---|---|
 | **Google Jules CLI** | `jules` | `jules version` | Autonomous 38-dimension code review, remediation sessions, patch application |
 | **GitHub CLI** | `gh` | `gh auth status` | Pull requests, issues, repo management, label sync, Actions monitoring |
-| **Vercel CLI** | `vercel` | `vercel whoami` | Frontend and Observatory serverless deployments, preview inspection |
+| **Vercel CLI** | `vercel` | `vercel whoami` | Frontend and serverless deployments, preview inspection |
 | **Neon CLI** | `neonctl` | `neonctl me` | Database branching, connection strings, migrations, schema isolation |
 | **Docker CLI** | `docker` | `docker info` | Image builds, multi-stage validation, local test containers |
 | **Python Package Manager** | `uv` | `uv --version` | Virtualenv management, dependency syncing, type checking |
 | **Node.js Package Manager** | `pnpm` | `pnpm --version` | Frontend dependencies, Next.js build, Biome formatting/linting |
-| **Go Toolchain** | `go` | `go version` | Backend API compilation, backup worker CLI execution, test suites |
+| **Go Toolchain** | `go` | `go version` | Backend API compilation, worker CLI execution, test suites |
 
 ---
 
@@ -32,11 +32,10 @@ This repository treats specialized developer CLI tools as first-class automation
 * **Review PR**:
   ```bash
   ./scripts/jules-review-loop.sh --pr <pr-number>
-  make jules-review PR=<pr-number>
   ```
 * **Dispatch Remediation Task**:
   ```bash
-  jules new --repo MishraShardendu22/github-backup-automation-system "<task-prompt>"
+  jules new --repo <owner>/<repo> "<task-prompt>"
   ```
 * **List Active Sessions**:
   ```bash
@@ -83,7 +82,28 @@ This repository treats specialized developer CLI tools as first-class automation
   ```
 * **Deploy Preview**:
   ```bash
-  cd frontend && vercel deploy
+  vercel deploy
+  ```
+
+### E. Python Package Manager (`uv`)
+* **Strict Rule**: Always use `uv`. Never invoke bare `pip install` or `python -m venv`.
+* **Environment & Run**:
+  ```bash
+  uv venv
+  uv sync
+  uv run pytest
+  uv add <pkg>
+  ```
+
+### F. Node.js Package Manager (`pnpm`)
+* **Strict Rule**: Always use `pnpm`. Never invoke `npm` or `yarn`. Only commit `pnpm-lock.yaml`.
+* **Dependencies & Build**:
+  ```bash
+  pnpm install
+  pnpm add <pkg>
+  pnpm up
+  pnpm run build
+  pnpm run test
   ```
 
 ---

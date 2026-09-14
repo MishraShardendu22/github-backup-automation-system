@@ -2,19 +2,21 @@
 name: test-creation-and-execution
 description: >-
   Rules, patterns, and runbooks for writing and running unit, integration, and AI agent test suites
-  across Go, Python Observatory, and Next.js frontend.
+  across Go, Python, and TypeScript frontends.
 ---
 
 # Test Creation & Execution Skill
 
-This skill defines the testing standards, frameworks, conventions, and execution workflows for the **GitHub Backup Automation System** polyglot monorepo.
+This skill defines the testing standards, frameworks, conventions, and execution workflows for polyglot services and applications.
 
-## 1. Branch-First Development
+---
+
+## 1. Local Branch-First Development
 
 > [!IMPORTANT]
-> **CREATE A LOCAL BRANCH FIRST**: Always start by creating a local branch from `main`:
+> **CREATE A LOCAL BRANCH FIRST**: Always start by creating a dedicated local branch from `main`:
 > ```bash
-> git switch -c MishraShardendu22/main/<feature-name>
+> git switch -c <developer-or-agent>/main/<feature-name>
 > ```
 > Never write tests or code directly on `main`.
 
@@ -22,20 +24,20 @@ This skill defines the testing standards, frameworks, conventions, and execution
 
 ## 2. Testing Architecture & Frameworks
 
-| Subsystem | Location | Framework & Tooling | Primary Test Command |
+| Subsystem | Typical Location | Framework & Tooling | Primary Test Command |
 | :--- | :--- | :--- | :--- |
-| **Go Backend & Worker** | `backend/` & `backup-worker/` | Standard Go `testing`, `httptest` | `make test-go` (`go test -v -race ./...`) |
-| **Python Observatory** | `agentic-observatory/` | Python `unittest`, `unittest.mock`, `httpx` | `make test-py` |
-| **AI Agent & RAG** | `agentic-observatory/` | Tool-calling mocks, LangChain agent harness | `make test-agents` |
-| **Frontend** | `frontend/` | Next.js Turbopack compiler, TypeScript `tsc` | `cd frontend && pnpm exec tsc --noEmit` |
+| **Go Backend & Workers** | `backend/`, `api/`, `cmd/` | Standard Go `testing`, `httptest` | `go test -v -race ./...` |
+| **Python Services** | `ai-service/`, `agent/` | Python `unittest` / `pytest`, `unittest.mock`, `httpx` | `uv run pytest` |
+| **AI Agent & RAG** | `agent/`, `evals/` | Tool-calling mocks, evaluation harness | `make test-agents` |
+| **Frontend & Web** | `frontend/`, `web/` | Vitest, TypeScript `tsc` | `pnpm exec vitest run` |
 
 ---
 
 ## 3. Go Test Creation Standards
 
 ### File Naming & Package Placement
-* Test files MUST reside in the same package and end with `_test.go` (e.g. `backend/handlers/health_test.go`).
-* Package declarations match the production package (e.g. `package handlers` or `package handlers_test` for black-box testing).
+- Test files MUST reside in the same package and end with `_test.go` (e.g. `handlers/health_test.go`).
+- Package declarations match the production package (e.g. `package handlers` or `package handlers_test` for black-box testing).
 
 ### Table-Driven Tests Pattern
 Always prefer table-driven testing in Go:
@@ -45,7 +47,6 @@ package config_test
 
 import (
 	"testing"
-	"github.com/MishraShardendu22/github-backup/backend/config"
 )
 
 func TestConfigValidation(t *testing.T) {
@@ -57,8 +58,7 @@ func TestConfigValidation(t *testing.T) {
 		{
 			name: "valid configuration",
 			envMap: map[string]string{
-				"DATABASE_URL":    "postgres://user:pass@localhost:5432/db",
-				"INTERNAL_SECRET": "secret123",
+				"DATABASE_URL": "postgres://user:pass@localhost:5432/db",
 			},
 			wantErr: false,
 		},
@@ -77,69 +77,41 @@ func TestConfigValidation(t *testing.T) {
 }
 ```
 
-### Mocking Fiber HTTP Handlers
-```go
-app := fiber.New()
-routes.Setup(app)
-
-req := httptest.NewRequest("GET", "/health", nil)
-resp, err := app.Test(req)
-if err != nil || resp.StatusCode != fiber.StatusOK {
-    t.Fatalf("expected 200 OK, got %d", resp.StatusCode)
-}
-```
-
 ---
 
-## 3. Python Observatory Test Creation Standards
+## 4. Python Test Creation Standards
 
 ### File Placement & Naming
-* Unit tests reside in `agentic-observatory/` with prefix `test_*.py` (e.g. `test_observability.py`, `test_openrouter_keys.py`, `test_agent_suite.py`).
+- Tests reside in `tests/` with prefix `test_*.py`.
 
-### Mocking OpenRouter & Async Endpoints
-* Never perform live external API calls during automated tests.
-* Use `unittest.mock.patch` to mock `httpx.AsyncClient` or `ChatOpenAI`:
+### Mocking External APIs
+- Never perform live external network or LLM API calls during automated unit tests.
+- Use `unittest.mock.patch` or `pytest-mock` to mock `httpx.AsyncClient` or external model clients:
 
 ```python
 import unittest
 from unittest.mock import AsyncMock, patch
-from main import app
-from httpx import AsyncClient, ASGITransport
 
-class TestObservabilityAPI(unittest.IsolatedAsyncioTestCase):
-    async def test_health_endpoint(self):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get("/health")
-            self.assertEqual(resp.status_code, 200)
-            self.assertEqual(resp.json()["status"], "healthy")
+class TestHealthAPI(unittest.IsolatedAsyncioTestCase):
+    async def test_health_check(self):
+        # Test mock client
+        pass
 ```
 
 ---
 
-## 4. Test Execution Runbook
+## 5. Test Execution Runbook
 
 ```bash
-# 1. Run all test suites across the monorepo
+# 1. Run all test suites across the repository
 make test
 
-# 2. Run Go backend and database unit tests
-make test-go
+# 2. Run Go tests with race detection
+go test -v -race ./...
 
-# 3. Run Python Observatory test suite
-make test-py
+# 3. Run Python test suite
+uv run pytest
 
-# 4. Run dedicated AI Agent & Tool-Calling RAG test suite
-make test-agents
-
-# 5. Run targeted Go package test
-go test -v ./backend/handlers/...
-
-# 6. Run single Python test file
-cd agentic-observatory && uv run python -m unittest test_observability.py
+# 4. Run Frontend test suite
+pnpm run test
 ```
-
----
-
-## 5. Pre-Commit Verification
-Always run `make test` and `make test-agents` before staging and committing any code changes.

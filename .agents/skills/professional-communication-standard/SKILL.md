@@ -46,8 +46,8 @@ This skill defines the mandatory protocol for maintaining strictly professional,
 
 ### Non-Compliant (Informal / Fluff / Emojis)
 ```markdown
-🚀 Great! I've gone ahead and fixed the bug for you! 🎉
-Everything is working amazingly now. Let me know if you have any questions! 😊
+Great! I have gone ahead and fixed the bug for you!
+Everything is working now. Let me know if you have any questions!
 ```
 
 ### Compliant (Professional / Objective / Emoji-Free)
