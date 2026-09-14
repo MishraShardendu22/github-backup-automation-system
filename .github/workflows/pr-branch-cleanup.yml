@@ -1,7 +1,7 @@
 # ==============================================================================
-# GitHub Actions — Automatic Remote Feature Branch Cleanup on PR Merge
+# GitHub Actions — Automatic Remote Feature Branch Cleanup on PR Closed / Merged
 # ==============================================================================
-name: "PR Post-Merge Remote Branch Cleanup"
+name: "PR Closed Remote Branch Cleanup"
 
 on:
   pull_request:
@@ -11,9 +11,9 @@ permissions:
   contents: write
 
 jobs:
-  cleanup-merged-branch:
-    name: "Delete Merged Remote Branch"
-    if: github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref != 'main' && github.event.pull_request.head.ref != 'master'
+  cleanup-closed-branch:
+    name: "Delete Closed Remote Branch"
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref != 'main' && github.event.pull_request.head.ref != 'master'
     runs-on: ubuntu-latest
     steps:
       - name: "Delete Remote Feature Branch"
@@ -22,14 +22,15 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const headRef = context.payload.pull_request.head.ref;
-            core.info(`Processing post-merge cleanup for branch: ${headRef}`);
+            const isMerged = context.payload.pull_request.merged;
+            core.info(`Processing cleanup for branch: ${headRef} (merged: ${isMerged})`);
             try {
               await github.rest.git.deleteRef({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 ref: `heads/${headRef}`
               });
-              core.info(`Successfully deleted merged remote branch: ${headRef}`);
+              core.info(`Successfully deleted remote branch: ${headRef}`);
             } catch (error) {
               if (error.status === 422 || error.status === 404) {
                 core.info(`Remote branch ${headRef} was already deleted or not found.`);
