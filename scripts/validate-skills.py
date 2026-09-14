@@ -58,60 +58,67 @@ def parse_frontmatter(content: str) -> tuple[dict, str]:
     return data, body
 
 def validate_skill(skill_path: Path, expected_scope: str = None) -> list[str]:
-    """Validate an individual skill directory and SKILL.md file with scope enforcement."""
+    """Validate an individual skill directory or skill markdown file with scope enforcement."""
     errors = []
-    skill_md = skill_path / "SKILL.md"
+    if skill_path.is_file():
+        skill_md = skill_path
+        skill_name = skill_path.stem
+        expected_dir_name = skill_path.parent.name if skill_name == "SKILL" else skill_name
+    else:
+        skill_md = skill_path / "SKILL.md"
+        skill_name = skill_path.name
+        expected_dir_name = skill_path.name
     
     if not skill_md.is_file():
-        return [f"Missing SKILL.md in {skill_path.name}"]
+        return [f"Missing SKILL.md in {skill_name}"]
     
     content = skill_md.read_text(encoding="utf-8")
     frontmatter, body = parse_frontmatter(content)
     
     if not frontmatter:
-        errors.append(f"{skill_path.name}/SKILL.md: Missing or malformed YAML frontmatter ('---')")
+        errors.append(f"{skill_name}: Missing or malformed YAML frontmatter ('---')")
         return errors
     
     name = frontmatter.get("name")
     if not name:
-        errors.append(f"{skill_path.name}/SKILL.md: Missing 'name' field in frontmatter")
-    elif name != skill_path.name:
-        errors.append(f"{skill_path.name}/SKILL.md: Name '{name}' does not match directory name '{skill_path.name}'")
+        errors.append(f"{skill_name}: Missing 'name' field in frontmatter")
+    elif name != expected_dir_name:
+        errors.append(f"{skill_name}: Name '{name}' does not match expected '{expected_dir_name}'")
         
     description = frontmatter.get("description")
     if not description:
-        errors.append(f"{skill_path.name}/SKILL.md: Missing 'description' field in frontmatter")
+        errors.append(f"{skill_name}: Missing 'description' field in frontmatter")
     elif len(description.strip()) < 15:
-        errors.append(f"{skill_path.name}/SKILL.md: Description is too short (< 15 characters)")
+        errors.append(f"{skill_name}: Description is too short (< 15 characters)")
         
     if not body.strip():
-        errors.append(f"{skill_path.name}/SKILL.md: Body content is empty")
+        errors.append(f"{skill_name}: Body content is empty")
         
     if not re.search(r"^#\s+.+", body, re.MULTILINE):
-        errors.append(f"{skill_path.name}/SKILL.md: Missing top-level Markdown heading (# Title)")
+        errors.append(f"{skill_name}: Missing top-level Markdown heading (# Title)")
 
     # Scope field validation
     scope = frontmatter.get("scope")
     if not scope:
-        errors.append(f"{skill_path.name}/SKILL.md: Missing 'scope' field (must be 'generic' or 'codebase-<name>')")
+        errors.append(f"{skill_name}: Missing 'scope' field (must be 'generic' or 'codebase-<name>')")
     else:
         if expected_scope:
             if scope != expected_scope:
-                errors.append(f"{skill_path.name}/SKILL.md: Scope '{scope}' does not match expected '{expected_scope}'")
+                errors.append(f"{skill_name}: Scope '{scope}' does not match expected '{expected_scope}'")
         elif not (scope == "generic" or scope.startswith("codebase-")):
-            errors.append(f"{skill_path.name}/SKILL.md: Invalid scope '{scope}'. Must be 'generic' or start with 'codebase-'")
+            errors.append(f"{skill_name}: Invalid scope '{scope}'. Must be 'generic' or start with 'codebase-'")
 
     # Generic scope isolation check: zero codebase leakage terms allowed
     if scope == "generic":
         for term in GENERIC_PROHIBITED_TERMS:
             # Check body and description case-insensitively, except if in governance definition
-            if skill_path.name != "skill-taxonomy-and-scope-governance":
+            if skill_name != "skill-taxonomy-and-scope-governance":
                 if term.lower() in content.lower():
-                    errors.append(f"{skill_path.name}/SKILL.md: Forbidden codebase-specific term '{term}' found in generic skill")
+                    errors.append(f"{skill_name}: Forbidden codebase-specific term '{term}' found in generic skill")
     elif scope and scope.startswith("codebase-"):
         # Codebase skills must have an explicit scope disclaimer in markdown body
         if not re.search(r"CODEBASE-SPECIFIC|PROJECT-SPECIFIC", body, re.IGNORECASE):
-            errors.append(f"{skill_path.name}/SKILL.md: Codebase skill must include an explicit '[!IMPORTANT]' disclaimer declaring its codebase scope")
+            errors.append(f"{skill_name}: Codebase skill must include an explicit '[!IMPORTANT]' disclaimer declaring its codebase scope")
         
     return errors
 
@@ -144,15 +151,24 @@ def main():
     codebase_skills = []
 
     for p in sorted(skill_folders):
-        s_md = p / "SKILL.md"
-        if s_md.is_file():
-            fm, _ = parse_frontmatter(s_md.read_text(encoding="utf-8"))
-            if fm.get("scope", "generic") == "generic":
-                generic_skills.append(p)
-            else:
-                codebase_skills.append((p, fm.get("scope")))
+        sub_mds = [f for f in p.glob("*.md") if not f.name.startswith("CAREERCAFE_DESIGN_SYSTEM") and not f.name.startswith("README")]
+        if len(sub_mds) > 1:
+            for f in sorted(sub_mds):
+                fm, _ = parse_frontmatter(f.read_text(encoding="utf-8"))
+                if fm.get("scope", "generic") == "generic":
+                    generic_skills.append(f)
+                else:
+                    codebase_skills.append((f, fm.get("scope")))
         else:
-            generic_skills.append(p)
+            s_md = p / "SKILL.md"
+            if s_md.is_file():
+                fm, _ = parse_frontmatter(s_md.read_text(encoding="utf-8"))
+                if fm.get("scope", "generic") == "generic":
+                    generic_skills.append(p)
+                else:
+                    codebase_skills.append((p, fm.get("scope")))
+            else:
+                generic_skills.append(p)
 
     # Validate Generic Skills
     print(f"[INFO] Validating {len(generic_skills)} generic skills in {target_dir.relative_to(repo_root)} (scope: generic)...\n")
