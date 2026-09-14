@@ -135,6 +135,22 @@ cmd_pull() {
         fi
     done
 
+    local pruned=0
+    for local_path in "$SKILLS_DIR"/*; do
+        if [[ -d "$local_path" ]]; then
+            local l_name
+            l_name="$(basename "$local_path")"
+            if [[ "$l_name" != .* && ! -d "$upstream_skills_dir/$l_name" ]]; then
+                log_info "Pruning obsolete local skill: ${BOLD}${l_name}${NC}"
+                rm -rf "$local_path"
+                pruned=$((pruned + 1))
+            fi
+        fi
+    done
+    if [[ $pruned -gt 0 ]]; then
+        log_info "Pruned ${BOLD}${pruned}${NC} obsolete skill(s) removed upstream."
+    fi
+
     log_success "Successfully pulled and updated ${BOLD}${count}${NC} skills into ${BOLD}${SKILLS_DIR}${NC}"
 }
 
@@ -145,6 +161,12 @@ cmd_push() {
 
     if [[ ! -d "$SKILLS_DIR" ]]; then
         log_error "No local skills directory found at ${SKILLS_DIR}"
+        return 1
+    fi
+
+    log_info "Validating skills before push..."
+    if ! cmd_validate; then
+        log_error "Validation failed. Aborting push to prevent publishing invalid skills."
         return 1
     fi
 
