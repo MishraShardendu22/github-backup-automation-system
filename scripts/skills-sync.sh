@@ -573,6 +573,11 @@ cmd_daemon() {
             systemctl --user restart git-webhook-daemon.service
             log_success "Restarted git-webhook-daemon.service."
             ;;
+        forward)
+            local target_repo="${1:-$REPO_URL}"
+            log_info "Forwarding GitHub webhooks for ${BOLD}${target_repo}${NC} to http://127.0.0.1:9876/events..."
+            gh webhook forward --repo "$target_repo" --events pull_request --url http://127.0.0.1:9876/events
+            ;;
         *)
             echo -e "${BOLD}Usage:${NC} skills-sync daemon <action>"
             echo "  setup      Install service & weekly timer into systemd --user (zero sudo)"
@@ -580,6 +585,7 @@ cmd_daemon() {
             echo "  sweep      Run reconciliation sweep across all registered repos"
             echo "  register   Register current or specified directory in machine registry"
             echo "  repos      List all registered repositories on this machine"
+            echo "  forward    Forward GitHub pull_request webhooks to local daemon via gh CLI"
             echo "  start      Start systemd daemon service"
             echo "  stop       Stop systemd daemon service"
             echo "  restart    Restart systemd daemon service"
