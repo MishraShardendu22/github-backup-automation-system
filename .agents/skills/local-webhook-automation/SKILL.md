@@ -59,11 +59,11 @@ action = data.get("action")
 merged = data.get("pull_request", {}).get("merged", False)
 branch = data.get("pull_request", {}).get("head", {}).get("ref")
 
-# 2. Check for merge event
-if action == "closed" and merged:
-    # 3. Locate worktree
-    # 4. Check git status
-    # 5. Execute git worktree remove --force and git branch -D
+# 2. Check for closed PR (merged or closed without merge)
+if action == "closed":
+    # 3. Locate worktree for branch
+    # 4. Check git status (abort if dirty files exist)
+    # 5. Execute git worktree remove and git branch -D
 ```
 
 ### C. Systemd User Service Configuration
