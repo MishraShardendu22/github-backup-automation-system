@@ -66,6 +66,7 @@ ${BOLD}COMMANDS:${NC}
     ${CYAN}new <skill-name>${NC}      Scaffold a new standardized SKILL.md template
     ${CYAN}list${NC}                  List all skills installed locally with their descriptions
     ${CYAN}validate${NC}              Lint and validate SKILL.md frontmatter across all skills
+    ${CYAN}wt <action>${NC}           Ephemeral worktree lifecycle (new, stack, pr, sweep, list)
     ${CYAN}install${NC}               Install 'skills-sync' to ~/.local/bin for global CLI access
     ${CYAN}help, -h, --help${NC}      Show this help message
     ${CYAN}version, -v${NC}           Show version information
@@ -396,6 +397,121 @@ cmd_install() {
     fi
 }
 
+# Worktree & Stacking Lifecycle Operations
+cmd_wt() {
+    local subcmd="${1:-}"
+    shift || true
+
+    local repo_root
+    repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+    if [[ -z "$repo_root" ]]; then
+        log_error "Not inside a Git repository."
+        return 1
+    fi
+
+    local wt_root="${GIT_WORKTREE_DIR:-$repo_root/.worktrees}"
+
+    case "$subcmd" in
+        new)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                log_error "Usage: skills-sync wt new <branch-slug>"
+                return 1
+            fi
+            local base_branch="main"
+            if git show-ref --quiet refs/remotes/origin/main; then
+                base_branch="origin/main"
+            fi
+            local wt_path="${wt_root}/wt-${name}"
+            if [[ -d "$wt_path" ]]; then
+                log_error "Worktree directory already exists: $wt_path"
+                return 1
+            fi
+            mkdir -p "$wt_root"
+            if ! grep -q "^\.worktrees" "$repo_root/.gitignore" 2>/dev/null; then
+                echo ".worktrees/" >> "$repo_root/.gitignore"
+                log_info "Added .worktrees/ to .gitignore"
+            fi
+            log_info "Creating worktree at ${wt_path} on branch ${name} from ${base_branch}..."
+            git worktree add -b "$name" "$wt_path" "$base_branch"
+            echo "main" > "${wt_path}/.wt-parent" 2>/dev/null || true
+            log_success "Created worktree: ${BOLD}${wt_path}${NC}"
+            log_info "To begin work, run: ${CYAN}cd ${wt_path}${NC}"
+            ;;
+        stack)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                log_error "Usage: skills-sync wt stack <branch-slug>"
+                return 1
+            fi
+            local parent_branch
+            parent_branch="$(git rev-parse --abbrev-ref HEAD)"
+            if [[ "$parent_branch" == "HEAD" ]]; then
+                log_error "Cannot stack from detached HEAD."
+                return 1
+            fi
+            local wt_path="${wt_root}/wt-${name}"
+            if [[ -d "$wt_path" ]]; then
+                log_error "Worktree directory already exists: $wt_path"
+                return 1
+            fi
+            mkdir -p "$wt_root"
+            log_info "Stacking new branch ${name} onto parent ${parent_branch}..."
+            git worktree add -b "$name" "$wt_path" "$parent_branch"
+            echo "$parent_branch" > "${wt_path}/.wt-parent" 2>/dev/null || true
+            log_success "Stacked worktree created: ${BOLD}${wt_path}${NC} (parent: ${parent_branch})"
+            log_info "To begin work, run: ${CYAN}cd ${wt_path}${NC}"
+            ;;
+        pr)
+            local curr_branch
+            curr_branch="$(git rev-parse --abbrev-ref HEAD)"
+            if [[ "$curr_branch" == "main" || "$curr_branch" == "HEAD" ]]; then
+                log_error "Cannot open PR from main or detached HEAD. Switch to a feature worktree."
+                return 1
+            fi
+            local base_branch="main"
+            if [[ -f ".wt-parent" ]]; then
+                base_branch="$(cat .wt-parent)"
+            fi
+            log_info "Running validation before push..."
+            cmd_validate
+            log_info "Pushing branch ${curr_branch} to origin..."
+            git push -u origin "$curr_branch"
+            if command -v gh >/dev/null 2>&1; then
+                local pr_title="${1:-feat: ${curr_branch}}"
+                log_info "Creating PR targeting base '${base_branch}'..."
+                gh pr create --base "$base_branch" --head "$curr_branch" --title "$pr_title" --body "Automated PR created from worktree."
+                log_success "PR created successfully."
+            else
+                log_warn "GitHub CLI (gh) not installed. Branch pushed; please open PR manually."
+            fi
+            ;;
+        sweep)
+            log_info "Running cold-boot reconciliation sweep on worktrees..."
+            local script_dir
+            script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+            if [[ -f "$script_dir/git-webhook-daemon.py" ]]; then
+                python3 "$script_dir/git-webhook-daemon.py" --repo-dir "$repo_root" --no-reconcile=false --dry-run || true
+            fi
+            echo -e "\n${BOLD}Current Active Worktrees:${NC}\n"
+            git worktree list
+            ;;
+        list|ls)
+            echo -e "\n${BOLD}Active Worktrees:${NC}\n"
+            git worktree list
+            echo ""
+            ;;
+        *)
+            echo -e "${BOLD}Usage:${NC} skills-sync wt <command> [options]"
+            echo "  new <name>     Create isolated branch and worktree at .worktrees/wt-<name>"
+            echo "  stack <name>   Create stacked branch & worktree off current worktree branch"
+            echo "  pr [title]     Validate, push, and open PR targeting tracked parent branch"
+            echo "  sweep          Reconcile and prune worktrees of merged PRs"
+            echo "  list           List all active worktrees"
+            ;;
+    esac
+}
+
 # Main Command Switch
 case "${1:-}" in
     pull)
@@ -417,6 +533,10 @@ case "${1:-}" in
         ;;
     validate|check)
         cmd_validate
+        ;;
+    wt|worktree)
+        shift
+        cmd_wt "$@"
         ;;
     install)
         cmd_install

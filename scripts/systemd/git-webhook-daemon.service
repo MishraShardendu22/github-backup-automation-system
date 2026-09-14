@@ -1,0 +1,14 @@
+[Unit]
+Description=Git Local Webhook & Worktree Cleanup Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.local/bin/git-webhook-daemon.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

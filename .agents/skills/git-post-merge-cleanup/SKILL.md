@@ -82,6 +82,19 @@ Or delete all local branches except `main` in one command:
 git branch | grep -v "^\* main$" | grep -v "^  main$" | xargs -r git branch -D
 ```
 
+### Step 4b: Prune & Remove Ephemeral Worktrees
+If the merged feature branch was checked out in a dedicated worktree:
+```bash
+# 1. Identify worktree path
+git worktree list
+
+# 2. Safely remove the worktree directory (assert clean status first)
+git worktree remove .worktrees/wt-<branch-slug>
+
+# 3. Prune internal git worktree metadata
+git worktree prune
+```
+
 ### Step 5: Expire Reflogs & Run Aggressive Garbage Collection
 Clean up dangling commits, unreachable objects, and optimize packfiles:
 ```bash

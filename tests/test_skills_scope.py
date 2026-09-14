@@ -30,16 +30,17 @@ class TestSkillsScopeTaxonomy(unittest.TestCase):
 
     def test_generic_skills_all_have_generic_scope(self):
         """Verify that every skill in .agents/skills has scope: generic."""
-        for skill_dir in self.generic_dir.iterdir():
-            if skill_dir.is_dir() and not skill_dir.name.startswith("."):
-                skill_md = skill_dir / "SKILL.md"
-                self.assertTrue(skill_md.is_file(), f"Missing SKILL.md in {skill_dir.name}")
-                fm, _ = parse_frontmatter(skill_md.read_text(encoding="utf-8"))
-                self.assertEqual(
-                    fm.get("scope"),
-                    "generic",
-                    f"Skill '{skill_dir.name}' must have 'scope: generic' in frontmatter",
-                )
+        skills = [p for p in self.generic_dir.iterdir() if p.is_dir() and not p.name.startswith(".")]
+        self.assertEqual(len(skills), 25, f"Expected exactly 25 generic skills, found {len(skills)}")
+        for skill_dir in skills:
+            skill_md = skill_dir / "SKILL.md"
+            self.assertTrue(skill_md.is_file(), f"Missing SKILL.md in {skill_dir.name}")
+            fm, _ = parse_frontmatter(skill_md.read_text(encoding="utf-8"))
+            self.assertEqual(
+                fm.get("scope"),
+                "generic",
+                f"Skill '{skill_dir.name}' must have 'scope: generic' in frontmatter",
+            )
 
     def test_generic_skills_zero_codebase_leaks(self):
         """Verify that generic skills contain no prohibited codebase-specific leakage terms."""

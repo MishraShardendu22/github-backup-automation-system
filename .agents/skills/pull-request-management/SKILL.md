@@ -31,9 +31,10 @@ This skill guides AI agents and contributors on how to create, format, and manag
 > - Agents are only authorized to push branches and open Pull Requests when **specifically and explicitly instructed by the user** (e.g. *"create a PR to main"*).
 
 > [!CAUTION]
-> **TARGET BRANCH IS ALWAYS `main` ONLY**:
-> - All Pull Requests in this repository MUST target **`main`**.
-> - Never open Pull Requests against `dev`, feature branches, or temporary staging branches. `main` is the sole integration branch.
+> **TARGET BRANCH IS ALWAYS `main` ONLY (EXCEPT FOR STACKED PRs)**:
+> - Standard Pull Requests MUST target **`main`**.
+> - **Stacked PR Exception**: When deliberately authoring stacked diffs per the `stacked-pr-workflow`, intermediate dependent PRs target their immediate upstream parent branch (`--base <parent-branch>`) until that parent branch is merged into `main`.
+> - Never open Pull Requests against arbitrary `dev` or staging branches.
 
 ---
 
