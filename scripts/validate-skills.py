@@ -151,24 +151,30 @@ def main():
     codebase_skills = []
 
     for p in sorted(skill_folders):
-        sub_mds = [f for f in p.glob("*.md") if not f.name.startswith("CAREERCAFE_DESIGN_SYSTEM") and not f.name.startswith("README")]
-        if len(sub_mds) > 1:
-            for f in sorted(sub_mds):
+        md_files = [f for f in p.glob("*.md") if not f.name.startswith("README")]
+        skill_md_files = []
+        for f in md_files:
+            try:
                 fm, _ = parse_frontmatter(f.read_text(encoding="utf-8"))
+                if fm.get("name"):
+                    skill_md_files.append((f, fm))
+            except Exception:
+                continue
+
+        if len(skill_md_files) > 1:
+            for f, fm in sorted(skill_md_files, key=lambda x: x[0].name):
                 if fm.get("scope", "generic") == "generic":
                     generic_skills.append(f)
                 else:
                     codebase_skills.append((f, fm.get("scope")))
-        else:
-            s_md = p / "SKILL.md"
-            if s_md.is_file():
-                fm, _ = parse_frontmatter(s_md.read_text(encoding="utf-8"))
-                if fm.get("scope", "generic") == "generic":
-                    generic_skills.append(p)
-                else:
-                    codebase_skills.append((p, fm.get("scope")))
-            else:
+        elif skill_md_files:
+            f, fm = skill_md_files[0]
+            if fm.get("scope", "generic") == "generic":
                 generic_skills.append(p)
+            else:
+                codebase_skills.append((p, fm.get("scope")))
+        else:
+            generic_skills.append(p)
 
     # Validate Generic Skills
     print(f"[INFO] Validating {len(generic_skills)} generic skills in {target_dir.relative_to(repo_root)} (scope: generic)...\n")
