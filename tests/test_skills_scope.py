@@ -26,10 +26,18 @@ class TestSkillsScopeTaxonomy(unittest.TestCase):
         self.all_skill_paths = []
         for p in self.skills_dir.iterdir():
             if p.is_dir() and not p.name.startswith("."):
-                sub_mds = [f for f in p.glob("*.md") if not f.name.startswith("CAREERCAFE_DESIGN_SYSTEM") and not f.name.startswith("README")]
-                if len(sub_mds) > 1:
-                    self.all_skill_paths.extend(sub_mds)
-                else:
+                md_files = [f for f in p.glob("*.md") if not f.name.startswith("README")]
+                skill_md_files = []
+                for f in md_files:
+                    try:
+                        fm, _ = parse_frontmatter(f.read_text(encoding="utf-8"))
+                        if fm.get("name"):
+                            skill_md_files.append(f)
+                    except Exception:
+                        pass
+                if len(skill_md_files) > 1:
+                    self.all_skill_paths.extend(skill_md_files)
+                elif len(skill_md_files) == 1:
                     self.all_skill_paths.append(p)
         self.generic_skills = []
         self.codebase_skills = []
